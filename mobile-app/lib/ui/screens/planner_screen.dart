@@ -6,6 +6,7 @@ import '../../blocs/planner/planner_bloc.dart';
 import '../../blocs/recipes/recipes_bloc.dart';
 import '../../data/models/planned_meal.dart';
 import '../../data/models/recipe.dart';
+import '../../data/recommendations/recommendation_engine.dart';
 
 class PlannerScreen extends StatelessWidget {
   const PlannerScreen({super.key});
@@ -13,7 +14,22 @@ class PlannerScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final plannerState = context.watch<PlannerBloc>().state;
+    final pantryItems = context.watch<PantryBloc>().state.items;
     final recipes = context.watch<RecipesBloc>().state.recipes;
+    final rankedRecommendations = RecommendationEngine.rankRecipes(
+      recipes: recipes,
+      pantryItems: pantryItems,
+      plannedMeals: plannerState.meals,
+    );
+    final favoriteRecipes = RecommendationEngine.favoriteRecipes(
+      recipes: recipes,
+      pantryItems: pantryItems,
+      plannedMeals: plannerState.meals,
+    );
+    final repeatRecipes = RecommendationEngine.repeatRecipes(
+      recipes: recipes,
+      plannedMeals: plannerState.meals,
+    );
 
     final next7Days = List<DateTime>.generate(
       7,
@@ -26,6 +42,10 @@ class PlannerScreen extends StatelessWidget {
         padding: const EdgeInsets.all(16),
         children: next7Days
             .map((day) {
+              final quickPicks = rankedRecommendations
+                  .where((item) => !_isRecipePlannedOnDay(item.recipe.id, day, plannerState.meals))
+                  .take(3)
+                  .toList(growable: false);
               final daily = plannerState.meals.where(
                 (meal) =>
                     meal.date.year == day.year &&
@@ -58,8 +78,41 @@ class PlannerScreen extends StatelessWidget {
                           ),
                         );
                       }),
+                      if (quickPicks.isNotEmpty) ...<Widget>[
+                        const SizedBox(height: 8),
+                        const Text(
+                          'Quick add',
+                          style: TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: quickPicks
+                              .map(
+                                (item) => ActionChip(
+                                  label: Text(item.recipe.title),
+                                  avatar: item.useSoonIngredients.isNotEmpty
+                                      ? const Icon(Icons.warning_amber_outlined, size: 18)
+                                      : null,
+                                  onPressed: () => _quickAddMeal(
+                                    context,
+                                    day: day,
+                                    recipe: item.recipe,
+                                  ),
+                                ),
+                              )
+                              .toList(growable: false),
+                        ),
+                      ],
                       TextButton.icon(
-                        onPressed: () => _showAddMealDialog(context, day),
+                        onPressed: () => _showAddMealDialog(
+                          context,
+                          day,
+                          rankedRecommendations,
+                          favoriteRecipes,
+                          repeatRecipes,
+                        ),
                         icon: const Icon(Icons.add),
                         label: const Text('Add meal'),
                       ),
@@ -73,21 +126,13 @@ class PlannerScreen extends StatelessWidget {
     );
   }
 
-  Future<void> _showAddMealDialog(BuildContext context, DateTime day) async {
-    final recipes = context.read<RecipesBloc>().state.recipes;
-    final pantryItems = context.read<PantryBloc>().state.items;
-    final pantrySet = pantryItems
-        .map((item) => item.name.toLowerCase())
-        .toSet();
-
-    final suggested = List<Recipe>.from(recipes)
-      ..sort(
-        (a, b) => _coverageScore(
-          b,
-          pantrySet,
-        ).compareTo(_coverageScore(a, pantrySet)),
-      );
-
+  Future<void> _showAddMealDialog(
+    BuildContext context,
+    DateTime day,
+    List<RecipeRecommendation> rankedRecommendations,
+    List<Recipe> favoriteRecipes,
+    List<Recipe> repeatRecipes,
+  ) async {
     Recipe? selectedRecipe;
     String selectedSlot = 'Dinner';
 
@@ -98,50 +143,102 @@ class PlannerScreen extends StatelessWidget {
           builder: (context, setState) {
             return AlertDialog(
               title: const Text('Plan meal'),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: <Widget>[
-                  DropdownButtonFormField<String>(
-                    initialValue: selectedSlot,
-                    decoration: const InputDecoration(labelText: 'Meal slot'),
-                    items: const <DropdownMenuItem<String>>[
-                      DropdownMenuItem(
-                        value: 'Breakfast',
-                        child: Text('Breakfast'),
-                      ),
-                      DropdownMenuItem(value: 'Lunch', child: Text('Lunch')),
-                      DropdownMenuItem(value: 'Dinner', child: Text('Dinner')),
-                    ],
-                    onChanged: (value) =>
-                        setState(() => selectedSlot = value ?? 'Dinner'),
-                  ),
-                  const SizedBox(height: 8),
-                  DropdownButtonFormField<String>(
-                    initialValue: selectedRecipe?.id,
-                    decoration: const InputDecoration(
-                      labelText: 'Suggested recipes',
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    DropdownButtonFormField<String>(
+                      initialValue: selectedSlot,
+                      decoration: const InputDecoration(labelText: 'Meal slot'),
+                      items: const <DropdownMenuItem<String>>[
+                        DropdownMenuItem(
+                          value: 'Breakfast',
+                          child: Text('Breakfast'),
+                        ),
+                        DropdownMenuItem(value: 'Lunch', child: Text('Lunch')),
+                        DropdownMenuItem(value: 'Dinner', child: Text('Dinner')),
+                      ],
+                      onChanged: (value) =>
+                          setState(() => selectedSlot = value ?? 'Dinner'),
                     ),
-                    isExpanded: true,
-                    items: suggested
-                        .take(20)
-                        .map(
-                          (recipe) => DropdownMenuItem<String>(
-                            value: recipe.id,
-                            child: Text(
-                              '${recipe.title} (${_coverageScore(recipe, pantrySet)}% pantry)',
+                    const SizedBox(height: 12),
+                    if (favoriteRecipes.isNotEmpty) ...<Widget>[
+                      const Text(
+                        'Favorites',
+                        style: TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: favoriteRecipes
+                            .map(
+                              (recipe) => ChoiceChip(
+                                label: Text(recipe.title),
+                                selected: selectedRecipe?.id == recipe.id,
+                                onSelected: (_) => setState(() => selectedRecipe = recipe),
+                              ),
+                            )
+                            .toList(growable: false),
+                      ),
+                      const SizedBox(height: 12),
+                    ],
+                    if (repeatRecipes.isNotEmpty) ...<Widget>[
+                      const Text(
+                        'Repeat meals',
+                        style: TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: repeatRecipes
+                            .map(
+                              (recipe) => ChoiceChip(
+                                label: Text(recipe.title),
+                                selected: selectedRecipe?.id == recipe.id,
+                                onSelected: (_) => setState(() => selectedRecipe = recipe),
+                              ),
+                            )
+                            .toList(growable: false),
+                      ),
+                      const SizedBox(height: 12),
+                    ],
+                    DropdownButtonFormField<String>(
+                      initialValue: selectedRecipe?.id,
+                      decoration: const InputDecoration(
+                        labelText: 'Suggested recipes',
+                      ),
+                      isExpanded: true,
+                      items: rankedRecommendations
+                          .take(20)
+                          .map(
+                            (item) => DropdownMenuItem<String>(
+                              value: item.recipe.id,
+                              child: Text(
+                                '${item.recipe.title} (${item.pantryCoverage}% pantry)',
+                              ),
                             ),
-                          ),
-                        )
-                        .toList(growable: false),
-                    onChanged: (value) {
-                      setState(() {
-                        selectedRecipe = suggested.firstWhere(
-                          (recipe) => recipe.id == value,
-                        );
-                      });
-                    },
-                  ),
-                ],
+                          )
+                          .toList(growable: false),
+                      onChanged: (value) {
+                        setState(() {
+                          selectedRecipe = rankedRecommendations
+                              .firstWhere((item) => item.recipe.id == value)
+                              .recipe;
+                        });
+                      },
+                    ),
+                    if (selectedRecipe != null) ...<Widget>[
+                      const SizedBox(height: 12),
+                      Text(
+                        'Selected: ${selectedRecipe!.title}',
+                        style: const TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                    ],
+                  ],
+                ),
               ),
               actions: <Widget>[
                 TextButton(
@@ -169,23 +266,50 @@ class PlannerScreen extends StatelessWidget {
       return;
     }
 
+    _addMeal(context, day: day, recipe: selectedRecipe!, slot: selectedSlot);
+  }
+
+  void _quickAddMeal(
+    BuildContext context, {
+    required DateTime day,
+    required Recipe recipe,
+  }) {
+    _addMeal(context, day: day, recipe: recipe, slot: 'Dinner');
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('${recipe.title} added to dinner')),
+    );
+  }
+
+  void _addMeal(
+    BuildContext context, {
+    required DateTime day,
+    required Recipe recipe,
+    required String slot,
+  }) {
     context.read<PlannerBloc>().add(
       PlannedMealAdded(
         PlannedMeal(
           id: DateTime.now().microsecondsSinceEpoch.toString(),
-          recipeId: selectedRecipe!.id,
+          recipeId: recipe.id,
           date: DateTime(day.year, day.month, day.day),
-          slot: selectedSlot,
+          slot: slot,
         ),
       ),
     );
   }
 
-  int _coverageScore(Recipe recipe, Set<String> pantryItems) {
-    final covered = recipe.ingredients
-        .where((ingredient) => pantryItems.contains(ingredient.toLowerCase()))
-        .length;
-    return ((covered / recipe.ingredients.length) * 100).round();
+  bool _isRecipePlannedOnDay(
+    String recipeId,
+    DateTime day,
+    List<PlannedMeal> meals,
+  ) {
+    return meals.any(
+      (meal) =>
+          meal.recipeId == recipeId &&
+          meal.date.year == day.year &&
+          meal.date.month == day.month &&
+          meal.date.day == day.day,
+    );
   }
 
   Recipe? _findRecipeById(List<Recipe> recipes, String recipeId) {
