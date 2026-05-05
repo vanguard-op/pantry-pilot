@@ -29,4 +29,50 @@ class SettingsRepository {
 
   String get dietaryNotes =>
       _box.get('dietary_notes', defaultValue: '') as String;
+
+  DateTime? get firstPlanCreatedAt {
+    final raw = _box.get('first_plan_created_at') as String?;
+    if (raw == null || raw.isEmpty) {
+      return null;
+    }
+    return DateTime.tryParse(raw);
+  }
+
+  Future<void> setFirstPlanCreatedAtIfAbsent(DateTime timestamp) async {
+    if (firstPlanCreatedAt != null) {
+      return;
+    }
+    await _box.put('first_plan_created_at', timestamp.toIso8601String());
+  }
+
+  Future<void> logCookingSession(DateTime timestamp) async {
+    final dates = _readDateList('cooking_session_dates');
+    dates.add(timestamp);
+    await _box.put(
+      'cooking_session_dates',
+      dates.map((date) => date.toIso8601String()).toList(growable: false),
+    );
+  }
+
+  int get totalCookingSessions => _readDateList('cooking_session_dates').length;
+
+  int cookingSessionsInLastDays(int days) {
+    final cutoff = DateTime.now().subtract(Duration(days: days));
+    return _readDateList('cooking_session_dates')
+        .where((date) => date.isAfter(cutoff))
+        .length;
+  }
+
+  List<DateTime> _readDateList(String key) {
+    final raw = _box.get(key);
+    if (raw is! List) {
+      return <DateTime>[];
+    }
+
+    return raw
+        .whereType<String>()
+        .map(DateTime.tryParse)
+        .whereType<DateTime>()
+        .toList(growable: false);
+  }
 }

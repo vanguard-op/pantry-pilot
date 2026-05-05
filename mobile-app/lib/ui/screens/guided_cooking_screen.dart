@@ -3,18 +3,36 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../blocs/cooking/cooking_bloc.dart';
 import '../../data/models/recipe.dart';
+import '../../data/repositories/settings_repository.dart';
 
-class GuidedCookingScreen extends StatelessWidget {
+class GuidedCookingScreen extends StatefulWidget {
   const GuidedCookingScreen({super.key, required this.recipe});
 
   final Recipe recipe;
 
   @override
+  State<GuidedCookingScreen> createState() => _GuidedCookingScreenState();
+}
+
+class _GuidedCookingScreenState extends State<GuidedCookingScreen> {
+  bool _sessionLogged = false;
+
+  @override
   Widget build(BuildContext context) {
     return BlocProvider<CookingBloc>(
-      create: (_) => CookingBloc()..add(CookingStarted(recipe)),
-      child: BlocBuilder<CookingBloc, CookingState>(
-        builder: (context, state) {
+      create: (_) => CookingBloc()..add(CookingStarted(widget.recipe)),
+      child: BlocListener<CookingBloc, CookingState>(
+        listenWhen: (previous, current) =>
+            !previous.completed && current.completed,
+        listener: (context, state) {
+          if (_sessionLogged) {
+            return;
+          }
+          _sessionLogged = true;
+          context.read<SettingsRepository>().logCookingSession(DateTime.now());
+        },
+        child: BlocBuilder<CookingBloc, CookingState>(
+          builder: (context, state) {
           final currentRecipe = state.recipe;
           if (currentRecipe == null) {
             return const Scaffold(
@@ -158,7 +176,8 @@ class GuidedCookingScreen extends StatelessWidget {
               ),
             ),
           );
-        },
+          },
+        ),
       ),
     );
   }

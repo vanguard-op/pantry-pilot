@@ -8,8 +8,10 @@ import 'blocs/recipes/recipes_bloc.dart';
 import 'data/repositories/pantry_repository.dart';
 import 'data/repositories/planner_repository.dart';
 import 'data/repositories/recipe_repository.dart';
+import 'data/repositories/feedback_repository.dart';
 import 'data/repositories/settings_repository.dart';
 import 'navigation/app_router.dart';
+import 'services/notification_service.dart';
 import 'theme/app_theme.dart';
 
 class PantryPilotApp extends StatelessWidget {
@@ -19,12 +21,16 @@ class PantryPilotApp extends StatelessWidget {
     required this.pantryRepository,
     required this.plannerRepository,
     required this.recipeRepository,
+    required this.feedbackRepository,
+    required this.notificationService,
   });
 
   final SettingsRepository settingsRepository;
   final PantryRepository pantryRepository;
   final PlannerRepository plannerRepository;
   final RecipeRepository recipeRepository;
+  final FeedbackRepository feedbackRepository;
+  final NotificationService notificationService;
 
   @override
   Widget build(BuildContext context) {
@@ -34,6 +40,10 @@ class PantryPilotApp extends StatelessWidget {
         RepositoryProvider<PantryRepository>.value(value: pantryRepository),
         RepositoryProvider<PlannerRepository>.value(value: plannerRepository),
         RepositoryProvider<RecipeRepository>.value(value: recipeRepository),
+        RepositoryProvider<FeedbackRepository>.value(value: feedbackRepository),
+        RepositoryProvider<NotificationService>.value(
+          value: notificationService,
+        ),
       ],
       child: MultiBlocProvider(
         providers: <BlocProvider<dynamic>>[
@@ -59,19 +69,49 @@ class PantryPilotApp extends StatelessWidget {
                   ..add(const RecipesStarted()),
           ),
         ],
-        child: BlocBuilder<OnboardingBloc, OnboardingState>(
-          builder: (context, state) {
-            return MaterialApp.router(
-              title: 'PantryPilot',
-              debugShowCheckedModeBanner: false,
-              theme: AppTheme.lightTheme,
-              darkTheme: AppTheme.darkTheme,
-              themeMode: ThemeMode.system,
-              routerConfig: AppRouter.createRouter(
-                onboardingComplete: state.completed,
-              ),
+        child: BlocListener<PantryBloc, PantryState>(
+          listener: (context, pantryState) {
+            context.read<NotificationService>().syncReminders(
+              pantryItems: pantryState.items,
+              plannedMeals: context.read<PlannerBloc>().state.meals,
+              recipes: context.read<RecipesBloc>().state.recipes,
             );
           },
+          child: BlocListener<PlannerBloc, PlannerState>(
+            listenWhen: (previous, current) {
+              return previous.meals.length != current.meals.length;
+            },
+            listener: (context, plannerState) {
+              context.read<NotificationService>().syncReminders(
+                pantryItems: context.read<PantryBloc>().state.items,
+                plannedMeals: plannerState.meals,
+                recipes: context.read<RecipesBloc>().state.recipes,
+              );
+
+              if (plannerState.meals.isNotEmpty) {
+                context.read<SettingsRepository>().setFirstPlanCreatedAtIfAbsent(
+                  DateTime.now(),
+                );
+              }
+            },
+            child: BlocListener<RecipesBloc, RecipesState>(
+              listener: (context, recipesState) {
+                context.read<NotificationService>().syncReminders(
+                  pantryItems: context.read<PantryBloc>().state.items,
+                  plannedMeals: context.read<PlannerBloc>().state.meals,
+                  recipes: recipesState.recipes,
+                );
+              },
+              child: MaterialApp.router(
+                title: 'PantryPilot',
+                debugShowCheckedModeBanner: false,
+                theme: AppTheme.lightTheme,
+                darkTheme: AppTheme.darkTheme,
+                themeMode: ThemeMode.system,
+                routerConfig: AppRouter.appRouter,
+              ),
+            ),
+          ),
         ),
       ),
     );

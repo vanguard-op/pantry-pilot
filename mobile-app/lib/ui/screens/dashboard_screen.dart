@@ -36,6 +36,26 @@ class DashboardScreen extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: <Widget>[
+          Row(
+            children: <Widget>[
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () => context.pushNamed(AppRouter.kpiName),
+                  icon: const Icon(Icons.query_stats),
+                  label: const Text('KPI dashboard'),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () => context.pushNamed(AppRouter.feedbackName),
+                  icon: const Icon(Icons.feedback_outlined),
+                  label: const Text('Feedback'),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
           if (upcomingMeals.isNotEmpty)
             Card(
               child: Padding(
