@@ -12,8 +12,17 @@ class RecipesScreen extends StatelessWidget {
   const RecipesScreen({super.key});
 
   static const _timeOptions = <int>[15, 30, 45, 60];
-  static const _skillOptions = <String>['Beginner', 'Intermediate', 'Confident'];
-  static const _dietOptions = <String>['Quick', 'Easy', 'Leafy Greens', 'Weeknight'];
+  static const _skillOptions = <String>[
+    'Beginner',
+    'Intermediate',
+    'Confident',
+  ];
+  static const _dietOptions = <String>[
+    'Quick',
+    'Easy',
+    'Leafy Greens',
+    'Weeknight',
+  ];
 
   @override
   Widget build(BuildContext context) {
@@ -42,59 +51,102 @@ class RecipesScreen extends StatelessWidget {
           ),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: AppPadding.md),
-            child: Wrap(
-              spacing: AppPadding.sm,
-              runSpacing: AppPadding.sm,
-              children: <Widget>[
-                DropdownButton<int?>(
-                  value: state.maxMinutesFilter,
-                  hint: const Text('Max time'),
-                  items: <DropdownMenuItem<int?>>[
-                    const DropdownMenuItem<int?>(value: null, child: Text('Any time')),
-                    ..._timeOptions.map(
-                      (minutes) => DropdownMenuItem<int?>(
-                        value: minutes,
-                        child: Text('<= $minutes min'),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                const spacing = AppPadding.sm;
+                const minFieldWidth = 156.0;
+                const maxFieldWidth = 240.0;
+                final desiredWidth = (constraints.maxWidth - (spacing * 2)) / 3;
+                final fieldWidth = desiredWidth
+                    .clamp(minFieldWidth, maxFieldWidth)
+                    .toDouble();
+                final totalRowWidth = (fieldWidth * 3) + (spacing * 2);
+
+                return SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(vertical: AppPadding.sm),
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(minWidth: constraints.maxWidth),
+                    child: SizedBox(
+                      width: totalRowWidth < constraints.maxWidth
+                          ? constraints.maxWidth
+                          : totalRowWidth,
+                      child: Row(
+                        children: <Widget>[
+                          SizedBox(
+                            width: fieldWidth,
+                            child: _RecipeFilterField<int>(
+                              label: 'Max time',
+                              value: state.maxMinutesFilter,
+                              items: <DropdownMenuItem<int?>>[
+                                const DropdownMenuItem<int?>(
+                                  value: null,
+                                  child: Text('Any time'),
+                                ),
+                                ..._timeOptions.map(
+                                  (minutes) => DropdownMenuItem<int?>(
+                                    value: minutes,
+                                    child: Text('<= $minutes min'),
+                                  ),
+                                ),
+                              ],
+                              onChanged: (value) => context
+                                  .read<RecipesBloc>()
+                                  .add(RecipesTimeFilterChanged(value)),
+                            ),
+                          ),
+                          const SizedBox(width: spacing),
+                          SizedBox(
+                            width: fieldWidth,
+                            child: _RecipeFilterField<String>(
+                              label: 'Skill',
+                              value: state.skillFilter,
+                              items: <DropdownMenuItem<String?>>[
+                                const DropdownMenuItem<String?>(
+                                  value: null,
+                                  child: Text('Any skill'),
+                                ),
+                                ..._skillOptions.map(
+                                  (skill) => DropdownMenuItem<String?>(
+                                    value: skill,
+                                    child: Text(skill),
+                                  ),
+                                ),
+                              ],
+                              onChanged: (value) => context
+                                  .read<RecipesBloc>()
+                                  .add(RecipesSkillFilterChanged(value)),
+                            ),
+                          ),
+                          const SizedBox(width: spacing),
+                          SizedBox(
+                            width: fieldWidth,
+                            child: _RecipeFilterField<String>(
+                              label: 'Dietary',
+                              value: state.dietFilter,
+                              items: <DropdownMenuItem<String?>>[
+                                const DropdownMenuItem<String?>(
+                                  value: null,
+                                  child: Text('Any dietary'),
+                                ),
+                                ..._dietOptions.map(
+                                  (diet) => DropdownMenuItem<String?>(
+                                    value: diet,
+                                    child: Text(diet),
+                                  ),
+                                ),
+                              ],
+                              onChanged: (value) => context
+                                  .read<RecipesBloc>()
+                                  .add(RecipesDietFilterChanged(value)),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                  ],
-                  onChanged: (value) => context
-                      .read<RecipesBloc>()
-                      .add(RecipesTimeFilterChanged(value)),
-                ),
-                DropdownButton<String?>(
-                  value: state.skillFilter,
-                  hint: const Text('Skill'),
-                  items: <DropdownMenuItem<String?>>[
-                    const DropdownMenuItem<String?>(value: null, child: Text('Any skill')),
-                    ..._skillOptions.map(
-                      (skill) => DropdownMenuItem<String?>(
-                        value: skill,
-                        child: Text(skill),
-                      ),
-                    ),
-                  ],
-                  onChanged: (value) => context
-                      .read<RecipesBloc>()
-                      .add(RecipesSkillFilterChanged(value)),
-                ),
-                DropdownButton<String?>(
-                  value: state.dietFilter,
-                  hint: const Text('Dietary'),
-                  items: <DropdownMenuItem<String?>>[
-                    const DropdownMenuItem<String?>(value: null, child: Text('Any dietary')),
-                    ..._dietOptions.map(
-                      (diet) => DropdownMenuItem<String?>(
-                        value: diet,
-                        child: Text(diet),
-                      ),
-                    ),
-                  ],
-                  onChanged: (value) => context
-                      .read<RecipesBloc>()
-                      .add(RecipesDietFilterChanged(value)),
-                ),
-              ],
+                  ),
+                );
+              },
             ),
           ),
           Padding(
@@ -170,5 +222,31 @@ class RecipesScreen extends StatelessWidget {
 
   String _buildRecipeInsight(Recipe recipe) {
     return '${recipe.ingredients.length} pantry items to prep • ${recipe.steps.length} cooking steps';
+  }
+}
+
+class _RecipeFilterField<T> extends StatelessWidget {
+  const _RecipeFilterField({
+    required this.label,
+    required this.value,
+    required this.items,
+    required this.onChanged,
+  });
+
+  final String label;
+  final T? value;
+  final List<DropdownMenuItem<T?>> items;
+  final ValueChanged<T?> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return DropdownButtonFormField<T?>(
+      initialValue: value,
+      items: items,
+      onChanged: onChanged,
+      decoration: InputDecoration(labelText: label),
+      borderRadius: BorderRadius.circular(AppRadius.md),
+      isExpanded: true,
+    );
   }
 }

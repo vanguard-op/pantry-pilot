@@ -76,7 +76,6 @@ ThemeData _baseTheme(
     cardTheme: CardThemeData(
       color: cardColor,
       elevation: 0,
-      margin: const EdgeInsets.all(AppPadding.md),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(AppRadius.lg),
         side: BorderSide(color: scheme.outlineVariant),
