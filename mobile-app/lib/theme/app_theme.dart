@@ -27,18 +27,12 @@ final ColorScheme _lightScheme = ColorScheme.fromSeed(
   seedColor: AppColors.primary,
   brightness: Brightness.light,
   surface: const Color(0xFFF6F1E7),
-).copyWith(
-  secondary: AppColors.secondary,
-  tertiary: AppColors.tertiary,
-);
+).copyWith(secondary: AppColors.secondary, tertiary: AppColors.tertiary);
 
 final ColorScheme _darkScheme = ColorScheme.fromSeed(
   seedColor: AppColors.primary,
   brightness: Brightness.dark,
-).copyWith(
-  secondary: AppColors.secondary,
-  tertiary: AppColors.tertiary,
-);
+).copyWith(secondary: AppColors.secondary, tertiary: AppColors.tertiary);
 
 class AppTheme {
   static ThemeData get lightTheme => _baseTheme(
@@ -92,14 +86,17 @@ ThemeData _baseTheme(
       style: ElevatedButton.styleFrom(
         backgroundColor: scheme.primary,
         foregroundColor: scheme.onPrimary,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppRadius.md),
-        ),
         elevation: 0,
-        padding: const EdgeInsets.symmetric(
-          vertical: AppPadding.md,
-          horizontal: AppPadding.xl,
+        textStyle: GoogleFonts.manrope(
+          fontWeight: FontWeight.w700,
+          fontSize: 16,
         ),
+      ),
+    ),
+    filledButtonTheme: FilledButtonThemeData(
+      style: FilledButton.styleFrom(
+        backgroundColor: scheme.primary,
+        foregroundColor: scheme.onPrimary,
         textStyle: GoogleFonts.manrope(
           fontWeight: FontWeight.w700,
           fontSize: 16,
@@ -110,13 +107,6 @@ ThemeData _baseTheme(
       style: OutlinedButton.styleFrom(
         foregroundColor: scheme.primary,
         side: BorderSide(color: scheme.outline.withAlpha(160)),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppRadius.md),
-        ),
-        padding: const EdgeInsets.symmetric(
-          vertical: AppPadding.md,
-          horizontal: AppPadding.xl,
-        ),
         textStyle: GoogleFonts.manrope(
           fontWeight: FontWeight.w700,
           fontSize: 16,
@@ -222,10 +212,7 @@ ThemeData _baseTheme(
         fontSize: 14,
         fontWeight: FontWeight.w400,
       ),
-      bodySmall: GoogleFonts.manrope(
-        fontSize: 12,
-        fontWeight: FontWeight.w400,
-      ),
+      bodySmall: GoogleFonts.manrope(fontSize: 12, fontWeight: FontWeight.w400),
       labelLarge: GoogleFonts.manrope(
         fontSize: 14,
         fontWeight: FontWeight.w700,
