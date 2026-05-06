@@ -2,7 +2,6 @@ import 'dart:async';
 
 import '../api/api_client.dart';
 import '../models/recipe.dart';
-import '../seed/recipe_seed_data.dart';
 
 class RecipeRepository {
   RecipeRepository(this._apiClient);
@@ -15,20 +14,6 @@ class RecipeRepository {
   bool _initialized = false;
 
   Future<void> initialize() => _refresh();
-
-  Future<void> seedIfNeeded() async {
-    await _ensureLoaded();
-    if (_recipes.isEmpty) {
-      final seeded = generateStarterRecipes();
-      for (final recipe in seeded) {
-        await _apiClient.postObject(
-          '/api/v1/recipes',
-          body: recipe.toMap(),
-        );
-      }
-      await _refresh();
-    }
-  }
 
   List<Recipe> getAll() => List<Recipe>.unmodifiable(_recipes);
 
@@ -51,13 +36,6 @@ class RecipeRepository {
 
   Future<void> toggleFavorite(String id) async {
     await _apiClient.postObject('/api/v1/recipes/$id/favorite', body: const {});
-    await _refresh();
-  }
-
-  Future<void> _ensureLoaded() async {
-    if (_initialized) {
-      return;
-    }
     await _refresh();
   }
 

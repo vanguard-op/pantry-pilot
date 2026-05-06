@@ -29,7 +29,6 @@ class RecipesBloc extends Bloc<RecipesEvent, RecipesState> {
     RecipesStarted event,
     Emitter<RecipesState> emit,
   ) async {
-    await _recipeRepository.seedIfNeeded();
     await _subscription?.cancel();
     _subscription = _recipeRepository.watchAll().listen((recipes) {
       add(RecipesChanged(recipes));
