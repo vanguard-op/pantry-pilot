@@ -3,7 +3,10 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../blocs/recipes/recipes_bloc.dart';
+import '../../data/models/recipe.dart';
 import '../../navigation/app_router.dart';
+import '../../theme/app_theme.dart';
+import '../widgets/recipe_summary_card.dart';
 
 class RecipesScreen extends StatelessWidget {
   const RecipesScreen({super.key});
@@ -14,7 +17,7 @@ class RecipesScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
     final state = context.watch<RecipesBloc>().state;
 
     return Scaffold(
@@ -22,7 +25,12 @@ class RecipesScreen extends StatelessWidget {
       body: Column(
         children: <Widget>[
           Padding(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.fromLTRB(
+              AppPadding.md,
+              AppPadding.md,
+              AppPadding.md,
+              AppPadding.sm,
+            ),
             child: TextField(
               decoration: const InputDecoration(
                 labelText: 'Search recipes or ingredients',
@@ -33,10 +41,10 @@ class RecipesScreen extends StatelessWidget {
             ),
           ),
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12),
+            padding: const EdgeInsets.symmetric(horizontal: AppPadding.md),
             child: Wrap(
-              spacing: 8,
-              runSpacing: 8,
+              spacing: AppPadding.sm,
+              runSpacing: AppPadding.sm,
               children: <Widget>[
                 DropdownButton<int?>(
                   value: state.maxMinutesFilter,
@@ -89,46 +97,78 @@ class RecipesScreen extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(height: 8),
-          Expanded(
-            child: ListView.builder(
-              itemCount: state.filteredRecipes.length,
-              itemBuilder: (context, index) {
-                final recipe = state.filteredRecipes[index];
-                return Card(
-                  margin: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 6,
-                  ),
-                  child: ListTile(
-                    title: Text(recipe.title),
-                    subtitle: Text(
-                      '${recipe.difficulty} - ${recipe.totalMinutes} min - ${recipe.ingredients.length} ingredients',
-                    ),
-                    trailing: IconButton(
-                      icon: Icon(
-                        recipe.isFavorite
-                            ? Icons.favorite
-                            : Icons.favorite_border,
-                        color: recipe.isFavorite ? colorScheme.tertiary : null,
-                      ),
-                      onPressed: () => context.read<RecipesBloc>().add(
-                        RecipeFavoriteToggled(recipe.id),
-                      ),
-                    ),
-                    onTap: () => context.pushNamed(
-                      AppRouter.recipeDetailName,
-                      pathParameters: <String, String>{
-                        AppRouter.recipeIdParam: recipe.id,
-                      },
-                    ),
-                  ),
-                );
-              },
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppPadding.md,
+              AppPadding.md,
+              AppPadding.md,
+              AppPadding.sm,
             ),
+            child: Row(
+              children: <Widget>[
+                Expanded(
+                  child: Text(
+                    '${state.filteredRecipes.length} recipes ready',
+                    style: textTheme.titleMedium,
+                  ),
+                ),
+                Text(
+                  state.searchTerm.isEmpty &&
+                          state.maxMinutesFilter == null &&
+                          state.skillFilter == null &&
+                          state.dietFilter == null
+                      ? 'All results'
+                      : 'Filtered',
+                  style: textTheme.labelMedium,
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: state.filteredRecipes.isEmpty
+                ? Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(AppPadding.xl),
+                      child: Text(
+                        'No recipes match those filters yet. Try widening your search.',
+                        textAlign: TextAlign.center,
+                        style: textTheme.bodyLarge,
+                      ),
+                    ),
+                  )
+                : ListView.builder(
+                    padding: const EdgeInsets.fromLTRB(
+                      AppPadding.md,
+                      0,
+                      AppPadding.md,
+                      AppPadding.md,
+                    ),
+                    itemCount: state.filteredRecipes.length,
+                    itemBuilder: (context, index) {
+                      final recipe = state.filteredRecipes[index];
+                      return RecipeSummaryCard(
+                        recipe: recipe,
+                        leadingLabel: 'Recipe pick',
+                        trailingText: _buildRecipeInsight(recipe),
+                        onFavoriteToggle: () => context.read<RecipesBloc>().add(
+                          RecipeFavoriteToggled(recipe.id),
+                        ),
+                        onTap: () => context.pushNamed(
+                          AppRouter.recipeDetailName,
+                          pathParameters: <String, String>{
+                            AppRouter.recipeIdParam: recipe.id,
+                          },
+                        ),
+                      );
+                    },
+                  ),
           ),
         ],
       ),
     );
+  }
+
+  String _buildRecipeInsight(Recipe recipe) {
+    return '${recipe.ingredients.length} pantry items to prep • ${recipe.steps.length} cooking steps';
   }
 }

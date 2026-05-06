@@ -5,13 +5,15 @@ import 'package:go_router/go_router.dart';
 import '../../blocs/planner/planner_bloc.dart';
 import '../../blocs/recipes/recipes_bloc.dart';
 import '../../navigation/app_router.dart';
+import '../../theme/app_theme.dart';
+import '../widgets/recipe_summary_card.dart';
 
 class FavoritesScreen extends StatelessWidget {
   const FavoritesScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
     final recipesState = context.watch<RecipesBloc>().state;
     final plannerMeals = context.watch<PlannerBloc>().state.meals;
     final favoriteRecipes = recipesState.recipes
@@ -22,9 +24,18 @@ class FavoritesScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('Favorites')),
       body: favoriteRecipes.isEmpty
-          ? const Center(child: Text('No favorite recipes yet.'))
+          ? Center(
+              child: Padding(
+                padding: const EdgeInsets.all(AppPadding.xl),
+                child: Text(
+                  'No favorite recipes yet. Save a few from the library and they will show up here.',
+                  textAlign: TextAlign.center,
+                  style: textTheme.bodyLarge,
+                ),
+              ),
+            )
           : ListView.builder(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(AppPadding.md),
               itemCount: favoriteRecipes.length,
               itemBuilder: (context, index) {
                 final recipe = favoriteRecipes[index];
@@ -41,28 +52,36 @@ class FavoritesScreen extends StatelessWidget {
                   }
                 }
 
-                return Card(
-                  child: ListTile(
-                    title: Text(recipe.title),
-                    subtitle: Text(
-                      'Planned $usageCount times'
-                      '${lastPlannedDate == null ? '' : ' • Last planned ${_formatDate(lastPlannedDate)}'}',
-                    ),
-                    trailing: IconButton(
-                      icon: const Icon(Icons.favorite),
-                      color: colorScheme.tertiary,
-                      onPressed: () {
-                        context.read<RecipesBloc>().add(
-                          RecipeFavoriteToggled(recipe.id),
-                        );
-                      },
-                    ),
-                    onTap: () => context.pushNamed(
-                      AppRouter.recipeDetailName,
-                      pathParameters: <String, String>{
-                        AppRouter.recipeIdParam: recipe.id,
-                      },
-                    ),
+                return RecipeSummaryCard(
+                  recipe: recipe,
+                  leadingLabel: 'Saved favorite',
+                  footer: Row(
+                    children: <Widget>[
+                      Icon(
+                        Icons.calendar_month_outlined,
+                        size: 18,
+                        color: Theme.of(context).colorScheme.secondary,
+                      ),
+                      const SizedBox(width: AppPadding.sm),
+                      Expanded(
+                        child: Text(
+                          'Planned $usageCount times'
+                          '${lastPlannedDate == null ? '' : ' • Last planned ${_formatDate(lastPlannedDate)}'}',
+                          style: textTheme.bodyMedium,
+                        ),
+                      ),
+                    ],
+                  ),
+                  onFavoriteToggle: () {
+                    context.read<RecipesBloc>().add(
+                      RecipeFavoriteToggled(recipe.id),
+                    );
+                  },
+                  onTap: () => context.pushNamed(
+                    AppRouter.recipeDetailName,
+                    pathParameters: <String, String>{
+                      AppRouter.recipeIdParam: recipe.id,
+                    },
                   ),
                 );
               },
