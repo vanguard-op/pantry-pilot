@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../blocs/pantry/pantry_bloc.dart';
 import '../../blocs/planner/planner_bloc.dart';
@@ -7,6 +8,7 @@ import '../../blocs/recipes/recipes_bloc.dart';
 import '../../data/models/planned_meal.dart';
 import '../../data/models/recipe.dart';
 import '../../data/recommendations/recommendation_engine.dart';
+import '../../navigation/app_router.dart';
 
 class PlannerScreen extends StatelessWidget {
   const PlannerScreen({super.key});
@@ -37,7 +39,16 @@ class PlannerScreen extends StatelessWidget {
     );
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Weekly Planner')),
+      appBar: AppBar(
+        title: const Text('Weekly Planner'),
+        actions: <Widget>[
+          IconButton(
+            tooltip: 'Shopping list',
+            onPressed: () => context.pushNamed(AppRouter.shoppingListName),
+            icon: const Icon(Icons.shopping_cart_outlined),
+          ),
+        ],
+      ),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: next7Days
@@ -53,72 +64,111 @@ class PlannerScreen extends StatelessWidget {
                     meal.date.day == day.day,
               );
 
-              return Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      Text(
-                        day.toLocal().toString().split(' ').first,
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      const SizedBox(height: 8),
-                      ...daily.map((meal) {
-                        final recipe = _findRecipeById(recipes, meal.recipeId);
-                        return ListTile(
-                          contentPadding: EdgeInsets.zero,
-                          title: Text(recipe?.title ?? 'Unknown recipe'),
-                          subtitle: Text(meal.slot),
-                          trailing: IconButton(
-                            icon: const Icon(Icons.delete_outline),
-                            onPressed: () => context.read<PlannerBloc>().add(
-                              PlannedMealDeleted(meal.id),
-                            ),
+              return DragTarget<PlannedMeal>(
+                onWillAcceptWithDetails: (_) => true,
+                onAcceptWithDetails: (details) {
+                  _moveMealToDay(context, meal: details.data, day: day);
+                },
+                builder: (context, candidateData, rejectedData) {
+                  final isActiveDrop = candidateData.isNotEmpty;
+                  return Card(
+                    color: isActiveDrop
+                        ? Theme.of(context).colorScheme.secondaryContainer
+                        : null,
+                    child: Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          Text(
+                            day.toLocal().toString().split(' ').first,
+                            style: const TextStyle(fontWeight: FontWeight.bold),
                           ),
-                        );
-                      }),
-                      if (quickPicks.isNotEmpty) ...<Widget>[
-                        const SizedBox(height: 8),
-                        const Text(
-                          'Quick add',
-                          style: TextStyle(fontWeight: FontWeight.w600),
-                        ),
-                        const SizedBox(height: 8),
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          children: quickPicks
-                              .map(
-                                (item) => ActionChip(
-                                  label: Text(item.recipe.title),
-                                  avatar: item.useSoonIngredients.isNotEmpty
-                                      ? const Icon(Icons.warning_amber_outlined, size: 18)
-                                      : null,
-                                  onPressed: () => _quickAddMeal(
-                                    context,
-                                    day: day,
-                                    recipe: item.recipe,
+                          const SizedBox(height: 8),
+                          ...daily.map((meal) {
+                            final recipe = _findRecipeById(recipes, meal.recipeId);
+                            return LongPressDraggable<PlannedMeal>(
+                              data: meal,
+                              feedback: Material(
+                                child: Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(
+                                    color: Theme.of(context).colorScheme.primaryContainer,
+                                    borderRadius: BorderRadius.circular(8),
                                   ),
+                                  child: Text(recipe?.title ?? 'Planned meal'),
                                 ),
-                              )
-                              .toList(growable: false),
-                        ),
-                      ],
-                      TextButton.icon(
-                        onPressed: () => _showAddMealDialog(
-                          context,
-                          day,
-                          rankedRecommendations,
-                          favoriteRecipes,
-                          repeatRecipes,
-                        ),
-                        icon: const Icon(Icons.add),
-                        label: const Text('Add meal'),
+                              ),
+                              child: ListTile(
+                                contentPadding: EdgeInsets.zero,
+                                title: Text(recipe?.title ?? 'Unknown recipe'),
+                                subtitle: Text('${meal.slot} • Drag to reschedule'),
+                                trailing: Wrap(
+                                  spacing: 4,
+                                  children: <Widget>[
+                                    IconButton(
+                                      tooltip: 'Edit slot',
+                                      icon: const Icon(Icons.edit_outlined),
+                                      onPressed: () => _showEditMealSlotDialog(
+                                        context,
+                                        meal: meal,
+                                      ),
+                                    ),
+                                    IconButton(
+                                      tooltip: 'Delete meal',
+                                      icon: const Icon(Icons.delete_outline),
+                                      onPressed: () => context.read<PlannerBloc>().add(
+                                        PlannedMealDeleted(meal.id),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          }),
+                          if (quickPicks.isNotEmpty) ...<Widget>[
+                            const SizedBox(height: 8),
+                            const Text(
+                              'Quick add',
+                              style: TextStyle(fontWeight: FontWeight.w600),
+                            ),
+                            const SizedBox(height: 8),
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              children: quickPicks
+                                  .map(
+                                    (item) => ActionChip(
+                                      label: Text(item.recipe.title),
+                                      avatar: item.useSoonIngredients.isNotEmpty
+                                          ? const Icon(Icons.warning_amber_outlined, size: 18)
+                                          : null,
+                                      onPressed: () => _quickAddMeal(
+                                        context,
+                                        day: day,
+                                        recipe: item.recipe,
+                                      ),
+                                    ),
+                                  )
+                                  .toList(growable: false),
+                            ),
+                          ],
+                          TextButton.icon(
+                            onPressed: () => _showAddMealDialog(
+                              context,
+                              day,
+                              rankedRecommendations,
+                              favoriteRecipes,
+                              repeatRecipes,
+                            ),
+                            icon: const Icon(Icons.add),
+                            label: const Text('Add meal'),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
-                ),
+                    ),
+                  );
+                },
               );
             })
             .toList(growable: false),
@@ -285,14 +335,100 @@ class PlannerScreen extends StatelessWidget {
     required DateTime day,
     required Recipe recipe,
     required String slot,
+    String? id,
   }) {
     context.read<PlannerBloc>().add(
       PlannedMealAdded(
         PlannedMeal(
-          id: DateTime.now().microsecondsSinceEpoch.toString(),
+          id: id ?? DateTime.now().microsecondsSinceEpoch.toString(),
           recipeId: recipe.id,
           date: DateTime(day.year, day.month, day.day),
           slot: slot,
+        ),
+      ),
+    );
+  }
+
+  void _moveMealToDay(
+    BuildContext context, {
+    required PlannedMeal meal,
+    required DateTime day,
+  }) {
+    final sameDay =
+        meal.date.year == day.year &&
+        meal.date.month == day.month &&
+        meal.date.day == day.day;
+    if (sameDay) {
+      return;
+    }
+
+    context.read<PlannerBloc>().add(
+      PlannedMealAdded(
+        PlannedMeal(
+          id: meal.id,
+          recipeId: meal.recipeId,
+          date: DateTime(day.year, day.month, day.day),
+          slot: meal.slot,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showEditMealSlotDialog(
+    BuildContext context, {
+    required PlannedMeal meal,
+  }) async {
+    String selectedSlot = meal.slot;
+
+    final shouldSave = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (dialogContext, setState) {
+            return AlertDialog(
+              title: const Text('Edit meal slot'),
+              content: DropdownButtonFormField<String>(
+                initialValue: selectedSlot,
+                decoration: const InputDecoration(labelText: 'Meal slot'),
+                items: const <DropdownMenuItem<String>>[
+                  DropdownMenuItem(value: 'Breakfast', child: Text('Breakfast')),
+                  DropdownMenuItem(value: 'Lunch', child: Text('Lunch')),
+                  DropdownMenuItem(value: 'Dinner', child: Text('Dinner')),
+                ],
+                onChanged: (value) {
+                  if (value == null) {
+                    return;
+                  }
+                  setState(() => selectedSlot = value);
+                },
+              ),
+              actions: <Widget>[
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(false),
+                  child: const Text('Cancel'),
+                ),
+                FilledButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(true),
+                  child: const Text('Save'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    if (shouldSave != true || !context.mounted || selectedSlot == meal.slot) {
+      return;
+    }
+
+    context.read<PlannerBloc>().add(
+      PlannedMealAdded(
+        PlannedMeal(
+          id: meal.id,
+          recipeId: meal.recipeId,
+          date: meal.date,
+          slot: selectedSlot,
         ),
       ),
     );

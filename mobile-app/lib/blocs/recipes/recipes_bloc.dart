@@ -16,6 +16,9 @@ class RecipesBloc extends Bloc<RecipesEvent, RecipesState> {
     on<RecipesStarted>(_onStarted);
     on<RecipesChanged>(_onChanged);
     on<RecipesSearchChanged>(_onSearchChanged);
+    on<RecipesTimeFilterChanged>(_onTimeFilterChanged);
+    on<RecipesSkillFilterChanged>(_onSkillFilterChanged);
+    on<RecipesDietFilterChanged>(_onDietFilterChanged);
     on<RecipeFavoriteToggled>(_onFavoriteToggled);
   }
 
@@ -42,6 +45,39 @@ class RecipesBloc extends Bloc<RecipesEvent, RecipesState> {
     Emitter<RecipesState> emit,
   ) {
     emit(state.copyWith(searchTerm: event.searchTerm));
+  }
+
+  void _onTimeFilterChanged(
+    RecipesTimeFilterChanged event,
+    Emitter<RecipesState> emit,
+  ) {
+    emit(
+      event.maxMinutes == null
+          ? state.copyWith(clearMaxMinutesFilter: true)
+          : state.copyWith(maxMinutesFilter: event.maxMinutes),
+    );
+  }
+
+  void _onSkillFilterChanged(
+    RecipesSkillFilterChanged event,
+    Emitter<RecipesState> emit,
+  ) {
+    emit(
+      event.skillLevel == null
+          ? state.copyWith(clearSkillFilter: true)
+          : state.copyWith(skillFilter: event.skillLevel),
+    );
+  }
+
+  void _onDietFilterChanged(
+    RecipesDietFilterChanged event,
+    Emitter<RecipesState> emit,
+  ) {
+    emit(
+      event.dietTag == null
+          ? state.copyWith(clearDietFilter: true)
+          : state.copyWith(dietFilter: event.dietTag),
+    );
   }
 
   Future<void> _onFavoriteToggled(

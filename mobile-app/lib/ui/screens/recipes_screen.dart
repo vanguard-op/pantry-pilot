@@ -8,6 +8,10 @@ import '../../navigation/app_router.dart';
 class RecipesScreen extends StatelessWidget {
   const RecipesScreen({super.key});
 
+  static const _timeOptions = <int>[15, 30, 45, 60];
+  static const _skillOptions = <String>['Beginner', 'Intermediate', 'Confident'];
+  static const _dietOptions = <String>['Quick', 'Easy', 'Leafy Greens', 'Weeknight'];
+
   @override
   Widget build(BuildContext context) {
     final state = context.watch<RecipesBloc>().state;
@@ -27,6 +31,64 @@ class RecipesScreen extends StatelessWidget {
                   context.read<RecipesBloc>().add(RecipesSearchChanged(value)),
             ),
           ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: <Widget>[
+                DropdownButton<int?>(
+                  value: state.maxMinutesFilter,
+                  hint: const Text('Max time'),
+                  items: <DropdownMenuItem<int?>>[
+                    const DropdownMenuItem<int?>(value: null, child: Text('Any time')),
+                    ..._timeOptions.map(
+                      (minutes) => DropdownMenuItem<int?>(
+                        value: minutes,
+                        child: Text('<= $minutes min'),
+                      ),
+                    ),
+                  ],
+                  onChanged: (value) => context
+                      .read<RecipesBloc>()
+                      .add(RecipesTimeFilterChanged(value)),
+                ),
+                DropdownButton<String?>(
+                  value: state.skillFilter,
+                  hint: const Text('Skill'),
+                  items: <DropdownMenuItem<String?>>[
+                    const DropdownMenuItem<String?>(value: null, child: Text('Any skill')),
+                    ..._skillOptions.map(
+                      (skill) => DropdownMenuItem<String?>(
+                        value: skill,
+                        child: Text(skill),
+                      ),
+                    ),
+                  ],
+                  onChanged: (value) => context
+                      .read<RecipesBloc>()
+                      .add(RecipesSkillFilterChanged(value)),
+                ),
+                DropdownButton<String?>(
+                  value: state.dietFilter,
+                  hint: const Text('Dietary'),
+                  items: <DropdownMenuItem<String?>>[
+                    const DropdownMenuItem<String?>(value: null, child: Text('Any dietary')),
+                    ..._dietOptions.map(
+                      (diet) => DropdownMenuItem<String?>(
+                        value: diet,
+                        child: Text(diet),
+                      ),
+                    ),
+                  ],
+                  onChanged: (value) => context
+                      .read<RecipesBloc>()
+                      .add(RecipesDietFilterChanged(value)),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
           Expanded(
             child: ListView.builder(
               itemCount: state.filteredRecipes.length,

@@ -29,6 +29,33 @@ class RecipesSearchChanged extends RecipesEvent {
   List<Object?> get props => <Object?>[searchTerm];
 }
 
+class RecipesTimeFilterChanged extends RecipesEvent {
+  const RecipesTimeFilterChanged(this.maxMinutes);
+
+  final int? maxMinutes;
+
+  @override
+  List<Object?> get props => <Object?>[maxMinutes];
+}
+
+class RecipesSkillFilterChanged extends RecipesEvent {
+  const RecipesSkillFilterChanged(this.skillLevel);
+
+  final String? skillLevel;
+
+  @override
+  List<Object?> get props => <Object?>[skillLevel];
+}
+
+class RecipesDietFilterChanged extends RecipesEvent {
+  const RecipesDietFilterChanged(this.dietTag);
+
+  final String? dietTag;
+
+  @override
+  List<Object?> get props => <Object?>[dietTag];
+}
+
 class RecipeFavoriteToggled extends RecipesEvent {
   const RecipeFavoriteToggled(this.recipeId);
 

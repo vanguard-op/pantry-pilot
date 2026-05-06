@@ -15,6 +15,7 @@
 - Weekly planner with drag-and-drop meals
 - Ingredient-aware meal suggestions based on pantry contents
 - Auto-generated shopping additions for missing ingredients
+- Shopping list purchase check-off that adds bought ingredients into pantry
 
 ### 3. Recipe Management
 - Save recipes with prep time, cook time, servings, and difficulty

@@ -85,7 +85,7 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
                         message: _messageController.text,
                         category: _category,
                       );
-                      if (!mounted) {
+                      if (!context.mounted) {
                         return;
                       }
                       _messageController.clear();
@@ -115,7 +115,8 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
                 return ListView.separated(
                   padding: const EdgeInsets.all(16),
                   itemCount: entries.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 8),
+                  separatorBuilder: (context, index) =>
+                      const SizedBox(height: 8),
                   itemBuilder: (context, index) {
                     final entry = entries[index];
                     return Card(

@@ -1,34 +1,68 @@
 part of 'recipes_bloc.dart';
 
 class RecipesState extends Equatable {
-  const RecipesState({this.recipes = const <Recipe>[], this.searchTerm = ''});
+  const RecipesState({
+    this.recipes = const <Recipe>[],
+    this.searchTerm = '',
+    this.maxMinutesFilter,
+    this.skillFilter,
+    this.dietFilter,
+  });
 
   final List<Recipe> recipes;
   final String searchTerm;
+  final int? maxMinutesFilter;
+  final String? skillFilter;
+  final String? dietFilter;
 
   List<Recipe> get filteredRecipes {
-    if (searchTerm.trim().isEmpty) {
-      return recipes;
-    }
     final q = searchTerm.toLowerCase();
-    return recipes
-        .where(
-          (recipe) =>
-              recipe.title.toLowerCase().contains(q) ||
-              recipe.ingredients.any(
-                (ingredient) => ingredient.toLowerCase().contains(q),
-              ),
-        )
-        .toList(growable: false);
+    return recipes.where((recipe) {
+      final matchesSearch =
+          q.isEmpty ||
+          recipe.title.toLowerCase().contains(q) ||
+          recipe.ingredients.any(
+            (ingredient) => ingredient.toLowerCase().contains(q),
+          );
+      final matchesTime =
+          maxMinutesFilter == null || recipe.totalMinutes <= maxMinutesFilter!;
+      final matchesSkill =
+          skillFilter == null || recipe.difficulty == skillFilter;
+      final matchesDiet =
+          dietFilter == null ||
+          recipe.tags.any((tag) => tag.toLowerCase() == dietFilter!.toLowerCase());
+
+      return matchesSearch && matchesTime && matchesSkill && matchesDiet;
+    }).toList(growable: false);
   }
 
-  RecipesState copyWith({List<Recipe>? recipes, String? searchTerm}) {
+  RecipesState copyWith({
+    List<Recipe>? recipes,
+    String? searchTerm,
+    int? maxMinutesFilter,
+    String? skillFilter,
+    String? dietFilter,
+    bool clearMaxMinutesFilter = false,
+    bool clearSkillFilter = false,
+    bool clearDietFilter = false,
+  }) {
     return RecipesState(
       recipes: recipes ?? this.recipes,
       searchTerm: searchTerm ?? this.searchTerm,
+      maxMinutesFilter: clearMaxMinutesFilter
+          ? null
+          : (maxMinutesFilter ?? this.maxMinutesFilter),
+      skillFilter: clearSkillFilter ? null : (skillFilter ?? this.skillFilter),
+      dietFilter: clearDietFilter ? null : (dietFilter ?? this.dietFilter),
     );
   }
 
   @override
-  List<Object?> get props => <Object?>[recipes, searchTerm];
+  List<Object?> get props => <Object?>[
+    recipes,
+    searchTerm,
+    maxMinutesFilter,
+    skillFilter,
+    dietFilter,
+  ];
 }

@@ -15,6 +15,10 @@ import '../ui/screens/recipes_screen.dart';
 import '../ui/screens/dashboard_screen.dart';
 import '../ui/screens/feedback_screen.dart';
 import '../ui/screens/kpi_dashboard_screen.dart';
+import '../ui/screens/shopping_list_screen.dart';
+import '../ui/screens/waste_summary_screen.dart';
+import '../ui/screens/favorites_screen.dart';
+import '../ui/screens/settings_screen.dart';
 
 class AppRouter {
   static const onboardingName = 'onboarding';
@@ -26,6 +30,10 @@ class AppRouter {
   static const recipeCookName = 'recipe-cook';
   static const feedbackName = 'feedback';
   static const kpiName = 'kpi-dashboard';
+  static const shoppingListName = 'shopping-list';
+  static const wasteSummaryName = 'waste-summary';
+  static const favoritesName = 'favorites';
+  static const settingsName = 'settings';
 
   static const onboardingPath = '/onboarding';
   static const homePath = '/home';
@@ -34,6 +42,10 @@ class AppRouter {
   static const recipesPath = '/recipes';
   static const feedbackPath = '/feedback';
   static const kpiPath = '/kpi';
+  static const shoppingListPath = '/shopping-list';
+  static const wasteSummaryPath = '/waste-summary';
+  static const favoritesPath = '/favorites';
+  static const settingsPath = '/settings';
 
   static const recipeIdParam = 'recipeId';
   static const _recipeDetailSegment = ':$recipeIdParam';
@@ -68,6 +80,26 @@ class AppRouter {
         name: AppRouter.kpiName,
         path: AppRouter.kpiPath,
         builder: (context, state) => const KpiDashboardScreen(),
+      ),
+      GoRoute(
+        name: AppRouter.shoppingListName,
+        path: AppRouter.shoppingListPath,
+        builder: (context, state) => const ShoppingListScreen(),
+      ),
+      GoRoute(
+        name: AppRouter.wasteSummaryName,
+        path: AppRouter.wasteSummaryPath,
+        builder: (context, state) => const WasteSummaryScreen(),
+      ),
+      GoRoute(
+        name: AppRouter.favoritesName,
+        path: AppRouter.favoritesPath,
+        builder: (context, state) => const FavoritesScreen(),
+      ),
+      GoRoute(
+        name: AppRouter.settingsName,
+        path: AppRouter.settingsPath,
+        builder: (context, state) => const SettingsScreen(),
       ),
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) {

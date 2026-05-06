@@ -56,6 +56,36 @@ class DashboardScreen extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 8),
+          Row(
+            children: <Widget>[
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () => context.pushNamed(AppRouter.favoritesName),
+                  icon: const Icon(Icons.favorite_outline),
+                  label: const Text('Favorites'),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () => context.pushNamed(AppRouter.settingsName),
+                  icon: const Icon(Icons.settings_outlined),
+                  label: const Text('Settings'),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: () =>
+                  context.pushNamed(AppRouter.wasteSummaryName),
+              icon: const Icon(Icons.analytics_outlined),
+              label: const Text('Weekly waste summary'),
+            ),
+          ),
+          const SizedBox(height: 8),
           if (upcomingMeals.isNotEmpty)
             Card(
               child: Padding(

@@ -30,6 +30,36 @@ class SettingsRepository {
   String get dietaryNotes =>
       _box.get('dietary_notes', defaultValue: '') as String;
 
+  int get expiryThresholdDays =>
+      _box.get('expiry_threshold_days', defaultValue: 3) as int;
+
+  Future<void> setExpiryThresholdDays(int days) async {
+    final normalized = days < 1 ? 1 : (days > 30 ? 30 : days);
+    await _box.put('expiry_threshold_days', normalized);
+  }
+
+  bool get pantryAutoDeductEnabled =>
+      _box.get('pantry_auto_deduct_enabled', defaultValue: true) as bool;
+
+  Future<void> setPantryAutoDeductEnabled(bool enabled) async {
+    await _box.put('pantry_auto_deduct_enabled', enabled);
+  }
+
+  bool get expiryNotificationsEnabled =>
+      _box.get('expiry_notifications_enabled', defaultValue: true) as bool;
+
+  bool get mealReminderNotificationsEnabled =>
+      _box.get('meal_reminder_notifications_enabled', defaultValue: true)
+          as bool;
+
+  Future<void> saveNotificationPreferences({
+    required bool expiryAlerts,
+    required bool mealReminders,
+  }) async {
+    await _box.put('expiry_notifications_enabled', expiryAlerts);
+    await _box.put('meal_reminder_notifications_enabled', mealReminders);
+  }
+
   DateTime? get firstPlanCreatedAt {
     final raw = _box.get('first_plan_created_at') as String?;
     if (raw == null || raw.isEmpty) {

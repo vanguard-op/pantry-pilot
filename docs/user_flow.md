@@ -55,15 +55,20 @@ User lands on the home dashboard with a partially or fully seeded pantry and opt
    - Missing ingredients: flags items for shopping list
 5. Shopping list auto-generated from gaps
    - User can edit, remove, or add items
-6. User confirms plan → saved to planner
+6. User marks purchased items after shopping
+   - Check off items as "Bought"
+   - Confirm quantity actually purchased
+   - Bought items are added to pantry stock
+7. User confirms plan → saved to planner
 
 ### Key Decisions
 - User can override any suggestion with manual search
 - Partial plans are valid; user is not forced to fill all 7 days
 - Shopping list can be exported or shared
+- Bought item sync updates pantry before cooking guidance checks
 
 ### Exit State
-A confirmed weekly meal plan is saved. Missing ingredients are in the shopping list. User returns to the home dashboard with the plan visible.
+A confirmed weekly meal plan is saved. Missing ingredients are in the shopping list, and bought items can be synced into pantry stock. User returns to the home dashboard with the plan visible.
 
 ---
 
@@ -109,6 +114,7 @@ Meal is marked complete in the planner. Inventory is updated. Recipe optionally 
 - User taps "Pantry" tab at any time
 - Post-shopping: notification prompt "Just got groceries? Update your pantry"
 - Low-stock alert notification
+- User taps "Add Bought Items to Pantry" from Shopping List
 
 ### Steps
 1. Pantry screen shows all items grouped by storage (fridge, freezer, pantry shelf)

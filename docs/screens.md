@@ -60,8 +60,8 @@ All screens are listed below, grouped by flow. Each entry includes the screen na
 ### 8. Shopping List Screen
 - **Purpose**: Show auto-generated list of missing ingredients for the planned week
 - **Content**: Grouped ingredient list (by category), quantity, checkboxes
-- **Actions**: Check off items, add custom items, remove items, share/export list
-- **Navigates to**: Pantry (to cross-reference), Weekly Planner
+- **Actions**: Check off items, mark item as "Bought", confirm bought quantity, add custom items, remove items, share/export list, "Add Bought Items to Pantry"
+- **Navigates to**: Pantry (to cross-reference and purchase sync), Weekly Planner
 
 ---
 
