@@ -313,7 +313,7 @@ class RecipeDetailScreen extends StatelessWidget {
           children: <Widget>[
             Expanded(
               child: OutlinedButton.icon(
-                onPressed: () => _showAddToPlanDialog(context, recipe),
+                onPressed: () => _showAddToPlanDialog(context, recipe!),
                 icon: const Icon(Icons.event_note_outlined),
                 label: const Text('Add to plan'),
               ),
