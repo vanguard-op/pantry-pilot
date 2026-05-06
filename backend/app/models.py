@@ -135,6 +135,9 @@ class SettingsModel(SQLModel, table=True):
     household_size: int = Field(default=1, ge=1, le=12)
     skill_level: Difficulty = Difficulty.beginner
     dietary_notes: str = ""
+    onboarding_complete: bool = False
+    first_plan_created_at: Optional[datetime] = None
+    cooking_session_dates: List[str] = Field(default_factory=list, sa_column=Column(JSON))
     expiry_threshold_days: int = Field(default=3, ge=1, le=30)
     expiry_notifications_enabled: bool = True
     meal_reminder_notifications_enabled: bool = True
@@ -146,6 +149,9 @@ class SettingsUpdate(SQLModel):
     household_size: Optional[int] = Field(default=None, ge=1, le=12)
     skill_level: Optional[Difficulty] = None
     dietary_notes: Optional[str] = None
+    onboarding_complete: Optional[bool] = None
+    first_plan_created_at: Optional[datetime] = None
+    cooking_session_dates: Optional[List[str]] = None
     expiry_threshold_days: Optional[int] = Field(default=None, ge=1, le=30)
     expiry_notifications_enabled: Optional[bool] = None
     meal_reminder_notifications_enabled: Optional[bool] = None
