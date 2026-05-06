@@ -35,7 +35,22 @@ class RecipeRepository {
   }
 
   Future<void> toggleFavorite(String id) async {
-    await _apiClient.postObject('/api/v1/recipes/$id/favorite', body: const {});
+    await _ensureLoaded();
+    final updated = Recipe.fromMap(
+      await _apiClient.postObject('/api/v1/recipes/$id/favorite', body: const {}),
+    );
+
+    _recipes = <Recipe>[
+      ..._recipes.where((recipe) => recipe.id != updated.id),
+      updated,
+    ];
+    _controller.add(getAll());
+  }
+
+  Future<void> _ensureLoaded() async {
+    if (_initialized) {
+      return;
+    }
     await _refresh();
   }
 

@@ -37,23 +37,29 @@ class PlannerRepository {
 
     await _ensureLoaded();
     final exists = _meals.any((entry) => entry.id == normalizedMeal.id);
-    if (exists) {
-      await _apiClient.patchObject(
-        '/api/v1/planner/${normalizedMeal.id}',
-        body: normalizedMeal.toMap(),
-      );
-    } else {
-      await _apiClient.postObject(
-        '/api/v1/planner',
-        body: normalizedMeal.toMap(),
-      );
-    }
-    await _refresh();
+    final responseMap = exists
+        ? await _apiClient.patchObject(
+            '/api/v1/planner/${normalizedMeal.id}',
+            body: normalizedMeal.toMap(),
+          )
+        : await _apiClient.postObject(
+            '/api/v1/planner',
+            body: normalizedMeal.toMap(),
+          );
+    final saved = PlannedMeal.fromMap(responseMap);
+
+    _meals = <PlannedMeal>[
+      ..._meals.where((entry) => entry.id != saved.id),
+      saved,
+    ];
+    _emit();
   }
 
   Future<void> deleteMeal(String id) async {
+    await _ensureLoaded();
     await _apiClient.delete('/api/v1/planner/$id');
-    await _refresh();
+    _meals = _meals.where((entry) => entry.id != id).toList(growable: false);
+    _emit();
   }
 
   Future<void> _ensureLoaded() async {
@@ -74,18 +80,23 @@ class PlannerRepository {
       _meals = rawMeals
           .whereType<Map>()
           .map((meal) => PlannedMeal.fromMap(meal.cast<String, dynamic>()))
-          .toList(growable: false)
-        ..sort((a, b) {
-          final dateCompare = a.date.compareTo(b.date);
-          if (dateCompare != 0) {
-            return dateCompare;
-          }
-          return a.slot.compareTo(b.slot);
-        });
+          .toList(growable: false);
       _initialized = true;
-      _controller.add(getAll());
+      _emit();
     } finally {
       _loading = false;
     }
+  }
+
+  void _emit() {
+    _meals = _meals.toList(growable: false)
+      ..sort((a, b) {
+        final dateCompare = a.date.compareTo(b.date);
+        if (dateCompare != 0) {
+          return dateCompare;
+        }
+        return a.slot.compareTo(b.slot);
+      });
+    _controller.add(getAll());
   }
 }

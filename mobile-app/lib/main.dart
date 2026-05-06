@@ -12,7 +12,7 @@ import 'services/notification_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  final apiClient = ApiClient();
+  final apiClient = await ApiClient.create();
   final settingsRepository = SettingsRepository(apiClient);
   final pantryRepository = PantryRepository(apiClient);
   final plannerRepository = PlannerRepository(apiClient);

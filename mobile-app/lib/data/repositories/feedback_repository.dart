@@ -37,24 +37,40 @@ class FeedbackRepository {
       return;
     }
 
-    await _apiClient.postObject(
-      '/api/v1/feedback',
-      body: <String, dynamic>{
-        'message': normalizedMessage,
-        'category': category.apiValue,
-      },
+    await _ensureLoaded();
+    final created = FeedbackEntry.fromMap(
+      await _apiClient.postObject(
+        '/api/v1/feedback',
+        body: <String, dynamic>{
+          'message': normalizedMessage,
+          'category': category.apiValue,
+        },
+      ),
     );
-    await _refresh();
+
+    _upsert(created);
+    _emit();
   }
 
   Future<void> updateStatus({
     required String id,
     required FeedbackStatus status,
   }) async {
-    await _apiClient.patchObject(
-      '/api/v1/feedback/$id',
-      body: <String, dynamic>{'status': status.apiValue},
+    await _ensureLoaded();
+    final updated = FeedbackEntry.fromMap(
+      await _apiClient.patchObject(
+        '/api/v1/feedback/$id',
+        body: <String, dynamic>{'status': status.apiValue},
+      ),
     );
+    _upsert(updated);
+    _emit();
+  }
+
+  Future<void> _ensureLoaded() async {
+    if (_initialized) {
+      return;
+    }
     await _refresh();
   }
 
@@ -72,12 +88,24 @@ class FeedbackRepository {
               .map(
                 (entry) => FeedbackEntry.fromMap(entry.cast<String, dynamic>()),
               )
-              .toList(growable: false)
-            ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+              .toList(growable: false);
       _initialized = true;
-      _controller.add(getAll());
+      _emit();
     } finally {
       _loading = false;
     }
+  }
+
+  void _upsert(FeedbackEntry value) {
+    _entries = <FeedbackEntry>[
+      ..._entries.where((entry) => entry.id != value.id),
+      value,
+    ];
+  }
+
+  void _emit() {
+    _entries = _entries.toList(growable: false)
+      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    _controller.add(getAll());
   }
 }

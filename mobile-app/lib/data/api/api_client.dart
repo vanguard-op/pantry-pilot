@@ -1,15 +1,49 @@
 import 'package:dio/dio.dart';
+import 'package:dio_cache_interceptor/dio_cache_interceptor.dart';
+import 'package:http_cache_hive_store/http_cache_hive_store.dart';
 import 'package:flutter/foundation.dart';
+import 'package:path_provider/path_provider.dart';
 
 class ApiClient {
-  ApiClient({Dio? dio, String? baseUrl, String? userId})
-    : _userId = userId ?? ApiConfig.defaultUserId,
-      _dio = dio ?? _buildDio(baseUrl ?? ApiConfig.defaultBaseUrl);
+  ApiClient._({
+    required Dio dio,
+    required CacheOptions cacheOptions,
+    required String userId,
+  }) : _dio = dio,
+       _cacheOptions = cacheOptions,
+       _userId = userId;
+
+  static Future<ApiClient> create({
+    Dio? dio,
+    String? baseUrl,
+    String? userId,
+  }) async {
+    final resolvedUserId = userId ?? ApiConfig.defaultUserId;
+    final resolvedBaseUrl = baseUrl ?? ApiConfig.defaultBaseUrl;
+    final cacheStore = await _buildCacheStore();
+
+    final cacheOptions = CacheOptions(
+      store: cacheStore,
+      policy: CachePolicy.request,
+      maxStale: const Duration(days: 7),
+      hitCacheOnErrorCodes: <int>[401, 403],
+    );
+
+    final builtDio = dio ?? _buildDio(resolvedBaseUrl);
+    builtDio.interceptors.add(DioCacheInterceptor(options: cacheOptions));
+
+    return ApiClient._(
+      dio: builtDio,
+      cacheOptions: cacheOptions,
+      userId: resolvedUserId,
+    );
+  }
 
   final Dio _dio;
+  final CacheOptions _cacheOptions;
   final String _userId;
 
-  /// Shared base options — timeout, base URL, and default headers.
+  /// Shared base options - timeout, base URL, and default headers.
   static Dio _buildDio(String baseUrl) {
     return Dio(
       BaseOptions(
@@ -21,6 +55,15 @@ class ApiClient {
     );
   }
 
+  static Future<CacheStore> _buildCacheStore() async {
+    if (kIsWeb) {
+      return HiveCacheStore(null);
+    }
+
+    final tempDirectory = await getTemporaryDirectory();
+    return HiveCacheStore('${tempDirectory.path}/dio_cache');
+  }
+
   Future<List<dynamic>> getList(
     String path, {
     Map<String, String>? queryParameters,
@@ -28,7 +71,7 @@ class ApiClient {
     final response = await _dio.get<dynamic>(
       path,
       queryParameters: queryParameters,
-      options: _options(),
+      options: _options(withCache: true),
     );
     final data = response.data;
     if (data is List<dynamic>) {
@@ -44,7 +87,7 @@ class ApiClient {
     final response = await _dio.get<dynamic>(
       path,
       queryParameters: queryParameters,
-      options: _options(),
+      options: _options(withCache: true),
     );
     return _asObject(response.data, path);
   }
@@ -92,12 +135,21 @@ class ApiClient {
   /// Builds per-request [Options] carrying the user identity header.
   /// Dio automatically serializes Map/List bodies to JSON when
   /// Content-Type is application/json.
-  Options _options({bool withBody = false}) {
-    return Options(
+  Options _options({bool withBody = false, bool withCache = false}) {
+    final requestOptions = Options(
       headers: <String, String>{
         'X-User-Id': _userId,
         if (withBody) 'Content-Type': 'application/json',
       },
+    );
+
+    if (!withCache) {
+      return requestOptions;
+    }
+
+    return _cacheOptions.toOptions().copyWith(
+      headers: requestOptions.headers,
+      contentType: requestOptions.contentType,
     );
   }
 

@@ -26,11 +26,15 @@ class PantryRepository {
   }
 
   Future<void> addItem(PantryItem item) async {
-    await _apiClient.postObject(
+    await _ensureLoaded();
+    final created = PantryItem.fromMap(
+      await _apiClient.postObject(
       '/api/v1/pantry',
       body: _normalizeItem(item).toMap(),
+      ),
     );
-    await _refresh();
+    _upsert(created);
+    _emit();
   }
 
   Future<void> upsertAll(List<PantryItem> items) async {
@@ -46,32 +50,46 @@ class PantryRepository {
       );
 
       if (existing == null) {
-        await _apiClient.postObject(
-          '/api/v1/pantry',
-          body: normalized.toMap(),
+        final created = PantryItem.fromMap(
+          await _apiClient.postObject(
+            '/api/v1/pantry',
+            body: normalized.toMap(),
+          ),
         );
+        _upsert(created);
         continue;
       }
 
-      await _apiClient.patchObject(
-        '/api/v1/pantry/${existing.id}',
-        body: normalized.copyWith(quantity: existing.quantity + normalized.quantity).toMap(),
+      final updated = PantryItem.fromMap(
+        await _apiClient.patchObject(
+          '/api/v1/pantry/${existing.id}',
+          body: normalized
+              .copyWith(quantity: existing.quantity + normalized.quantity)
+              .toMap(),
+        ),
       );
+      _upsert(updated);
     }
-    await _refresh();
+    _emit();
   }
 
   Future<void> updateItem(PantryItem item) async {
-    await _apiClient.patchObject(
-      '/api/v1/pantry/${item.id}',
-      body: _normalizeItem(item).toMap(),
+    await _ensureLoaded();
+    final updated = PantryItem.fromMap(
+      await _apiClient.patchObject(
+        '/api/v1/pantry/${item.id}',
+        body: _normalizeItem(item).toMap(),
+      ),
     );
-    await _refresh();
+    _upsert(updated);
+    _emit();
   }
 
   Future<void> deleteItem(String id) async {
+    await _ensureLoaded();
     await _apiClient.delete('/api/v1/pantry/$id');
-    await _refresh();
+    _items = _items.where((item) => item.id != id).toList(growable: false);
+    _emit();
   }
 
   PantryItem _normalizeItem(PantryItem item) {
@@ -110,12 +128,24 @@ class PantryRepository {
       _items = rawItems
           .whereType<Map>()
           .map((item) => PantryItem.fromMap(item.cast<String, dynamic>()))
-          .toList(growable: false)
-        ..sort((a, b) => a.expiryDate.compareTo(b.expiryDate));
+          .toList(growable: false);
       _initialized = true;
-      _controller.add(getAll());
+      _emit();
     } finally {
       _loading = false;
     }
+  }
+
+  void _upsert(PantryItem value) {
+    _items = <PantryItem>[
+      ..._items.where((item) => item.id != value.id),
+      value,
+    ];
+  }
+
+  void _emit() {
+    _items = _items.toList(growable: false)
+      ..sort((a, b) => a.expiryDate.compareTo(b.expiryDate));
+    _controller.add(getAll());
   }
 }
