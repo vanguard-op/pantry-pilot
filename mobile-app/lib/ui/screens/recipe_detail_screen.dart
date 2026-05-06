@@ -3,7 +3,9 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../blocs/pantry/pantry_bloc.dart';
+import '../../blocs/planner/planner_bloc.dart';
 import '../../blocs/recipes/recipes_bloc.dart';
+import '../../data/models/planned_meal.dart';
 import '../../data/models/recipe.dart';
 import '../../navigation/app_router.dart';
 import '../../theme/app_theme.dart';
@@ -307,13 +309,127 @@ class RecipeDetailScreen extends StatelessWidget {
           AppPadding.md,
           AppPadding.md,
         ),
-        child: FilledButton.icon(
-          onPressed: () => context.pushNamed(
-            AppRouter.recipeCookName,
-            pathParameters: <String, String>{AppRouter.recipeIdParam: recipeId},
-          ),
-          icon: const Icon(Icons.play_arrow),
-          label: const Text('Start cooking'),
+        child: Row(
+          children: <Widget>[
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: () => _showAddToPlanDialog(context, recipe),
+                icon: const Icon(Icons.event_note_outlined),
+                label: const Text('Add to plan'),
+              ),
+            ),
+            const SizedBox(width: AppPadding.sm),
+            Expanded(
+              child: FilledButton.icon(
+                onPressed: () => context.pushNamed(
+                  AppRouter.recipeCookName,
+                  pathParameters: <String, String>{
+                    AppRouter.recipeIdParam: recipeId,
+                  },
+                ),
+                icon: const Icon(Icons.play_arrow),
+                label: const Text('Start cooking'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showAddToPlanDialog(BuildContext context, Recipe recipe) async {
+    DateTime selectedDate = DateTime.now();
+    String selectedSlot = 'Dinner';
+
+    final shouldSave = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (dialogContext, setState) {
+            return AlertDialog(
+              title: const Text('Add to weekly plan'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text(recipe.title),
+                  const SizedBox(height: AppPadding.md),
+                  OutlinedButton.icon(
+                    onPressed: () async {
+                      final picked = await showDatePicker(
+                        context: dialogContext,
+                        initialDate: selectedDate,
+                        firstDate: DateTime.now().subtract(const Duration(days: 1)),
+                        lastDate: DateTime.now().add(const Duration(days: 30)),
+                      );
+                      if (picked == null) {
+                        return;
+                      }
+                      setState(() => selectedDate = picked);
+                    },
+                    icon: const Icon(Icons.calendar_today_outlined),
+                    label: Text(
+                      'Date: ${selectedDate.toLocal().toString().split(' ').first}',
+                    ),
+                  ),
+                  const SizedBox(height: AppPadding.md),
+                  DropdownButtonFormField<String>(
+                    initialValue: selectedSlot,
+                    decoration: const InputDecoration(labelText: 'Meal slot'),
+                    items: const <DropdownMenuItem<String>>[
+                      DropdownMenuItem(
+                        value: 'Breakfast',
+                        child: Text('Breakfast'),
+                      ),
+                      DropdownMenuItem(value: 'Lunch', child: Text('Lunch')),
+                      DropdownMenuItem(value: 'Dinner', child: Text('Dinner')),
+                    ],
+                    onChanged: (value) {
+                      setState(() => selectedSlot = value ?? 'Dinner');
+                    },
+                  ),
+                ],
+              ),
+              actions: <Widget>[
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(false),
+                  child: const Text('Cancel'),
+                ),
+                FilledButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(true),
+                  child: const Text('Add meal'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    if (shouldSave != true || !context.mounted) {
+      return;
+    }
+
+    final normalizedDate = DateTime(
+      selectedDate.year,
+      selectedDate.month,
+      selectedDate.day,
+    );
+    context.read<PlannerBloc>().add(
+      PlannedMealAdded(
+        PlannedMeal(
+          id: DateTime.now().microsecondsSinceEpoch.toString(),
+          recipeId: recipe.id,
+          date: normalizedDate,
+          slot: selectedSlot,
+        ),
+      ),
+    );
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          '${recipe.title} added for ${normalizedDate.toString().split(' ').first} ($selectedSlot)',
         ),
       ),
     );

@@ -71,10 +71,14 @@ class PantryPilotApp extends StatelessWidget {
         ],
         child: BlocListener<PantryBloc, PantryState>(
           listener: (context, pantryState) {
+            final settings = context.read<SettingsRepository>();
             context.read<NotificationService>().syncReminders(
               pantryItems: pantryState.items,
               plannedMeals: context.read<PlannerBloc>().state.meals,
               recipes: context.read<RecipesBloc>().state.recipes,
+              expiryThresholdDays: settings.expiryThresholdDays,
+              expiryAlertsEnabled: settings.expiryNotificationsEnabled,
+              mealRemindersEnabled: settings.mealReminderNotificationsEnabled,
             );
           },
           child: BlocListener<PlannerBloc, PlannerState>(
@@ -82,10 +86,14 @@ class PantryPilotApp extends StatelessWidget {
               return previous.meals.length != current.meals.length;
             },
             listener: (context, plannerState) {
+              final settings = context.read<SettingsRepository>();
               context.read<NotificationService>().syncReminders(
                 pantryItems: context.read<PantryBloc>().state.items,
                 plannedMeals: plannerState.meals,
                 recipes: context.read<RecipesBloc>().state.recipes,
+                expiryThresholdDays: settings.expiryThresholdDays,
+                expiryAlertsEnabled: settings.expiryNotificationsEnabled,
+                mealRemindersEnabled: settings.mealReminderNotificationsEnabled,
               );
 
               if (plannerState.meals.isNotEmpty) {
@@ -96,10 +104,14 @@ class PantryPilotApp extends StatelessWidget {
             },
             child: BlocListener<RecipesBloc, RecipesState>(
               listener: (context, recipesState) {
+                final settings = context.read<SettingsRepository>();
                 context.read<NotificationService>().syncReminders(
                   pantryItems: context.read<PantryBloc>().state.items,
                   plannedMeals: context.read<PlannerBloc>().state.meals,
                   recipes: recipesState.recipes,
+                  expiryThresholdDays: settings.expiryThresholdDays,
+                  expiryAlertsEnabled: settings.expiryNotificationsEnabled,
+                  mealRemindersEnabled: settings.mealReminderNotificationsEnabled,
                 );
               },
               child: MaterialApp.router(

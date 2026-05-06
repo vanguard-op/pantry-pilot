@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../blocs/pantry/pantry_bloc.dart';
+import '../../blocs/planner/planner_bloc.dart';
+import '../../blocs/recipes/recipes_bloc.dart';
 import '../../data/repositories/settings_repository.dart';
+import '../../services/notification_service.dart';
 import '../../theme/app_theme.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -44,6 +48,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     final settings = context.read<SettingsRepository>();
+    final notificationService = context.read<NotificationService>();
     final textTheme = Theme.of(context).textTheme;
 
     return Scaffold(
@@ -145,6 +150,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
           const SizedBox(height: AppPadding.md),
           FilledButton.icon(
             onPressed: () async {
+              final pantryItems = context.read<PantryBloc>().state.items;
+              final plannedMeals = context.read<PlannerBloc>().state.meals;
+              final recipes = context.read<RecipesBloc>().state.recipes;
+
               await settings.saveHouseholdProfile(
                 size: _householdSize,
                 skillLevel: _skillLevel,
@@ -157,6 +166,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
               await settings.setExpiryThresholdDays(_expiryThresholdDays);
               await settings.setPantryAutoDeductEnabled(
                 _pantryAutoDeductEnabled,
+              );
+              await notificationService.syncReminders(
+                pantryItems: pantryItems,
+                plannedMeals: plannedMeals,
+                recipes: recipes,
+                expiryThresholdDays: settings.expiryThresholdDays,
+                expiryAlertsEnabled: settings.expiryNotificationsEnabled,
+                mealRemindersEnabled:
+                    settings.mealReminderNotificationsEnabled,
               );
 
               if (!context.mounted) {
