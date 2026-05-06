@@ -1,29 +1,38 @@
-import 'dart:convert';
-
+import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
-import 'package:http/http.dart' as http;
 
 class ApiClient {
-  ApiClient({http.Client? httpClient, String? baseUrl, String? userId})
-    : _httpClient = httpClient ?? http.Client(),
-      _baseUrl = _normalizeBaseUrl(baseUrl ?? ApiConfig.defaultBaseUrl),
-      _userId = userId ?? ApiConfig.defaultUserId;
+  ApiClient({Dio? dio, String? baseUrl, String? userId})
+    : _userId = userId ?? ApiConfig.defaultUserId,
+      _dio = dio ?? _buildDio(baseUrl ?? ApiConfig.defaultBaseUrl);
 
-  final http.Client _httpClient;
-  final String _baseUrl;
+  final Dio _dio;
   final String _userId;
+
+  /// Shared base options — timeout, base URL, and default headers.
+  static Dio _buildDio(String baseUrl) {
+    return Dio(
+      BaseOptions(
+        baseUrl: _normalizeBaseUrl(baseUrl),
+        connectTimeout: const Duration(seconds: 10),
+        receiveTimeout: const Duration(seconds: 30),
+        headers: <String, String>{'Accept': 'application/json'},
+      ),
+    );
+  }
 
   Future<List<dynamic>> getList(
     String path, {
     Map<String, String>? queryParameters,
   }) async {
-    final response = await _httpClient.get(
-      _buildUri(path, queryParameters: queryParameters),
-      headers: _headers(),
+    final response = await _dio.get<dynamic>(
+      path,
+      queryParameters: queryParameters,
+      options: _options(),
     );
-    final decoded = _decodeResponse(response);
-    if (decoded is List<dynamic>) {
-      return decoded;
+    final data = response.data;
+    if (data is List<dynamic>) {
+      return data;
     }
     throw ApiException('Expected a JSON list from $path.');
   }
@@ -32,85 +41,63 @@ class ApiClient {
     String path, {
     Map<String, String>? queryParameters,
   }) async {
-    final response = await _httpClient.get(
-      _buildUri(path, queryParameters: queryParameters),
-      headers: _headers(),
+    final response = await _dio.get<dynamic>(
+      path,
+      queryParameters: queryParameters,
+      options: _options(),
     );
-    return _asObject(_decodeResponse(response), path);
+    return _asObject(response.data, path);
   }
 
   Future<Map<String, dynamic>> postObject(
     String path, {
     required Object body,
   }) async {
-    final response = await _httpClient.post(
-      _buildUri(path),
-      headers: _headers(withBody: true),
-      body: jsonEncode(body),
+    final response = await _dio.post<dynamic>(
+      path,
+      data: body,
+      options: _options(withBody: true),
     );
-    return _asObject(_decodeResponse(response), path);
+    return _asObject(response.data, path);
   }
 
   Future<Map<String, dynamic>> patchObject(
     String path, {
     required Object body,
   }) async {
-    final response = await _httpClient.patch(
-      _buildUri(path),
-      headers: _headers(withBody: true),
-      body: jsonEncode(body),
+    final response = await _dio.patch<dynamic>(
+      path,
+      data: body,
+      options: _options(withBody: true),
     );
-    return _asObject(_decodeResponse(response), path);
+    return _asObject(response.data, path);
   }
 
   Future<Map<String, dynamic>> putObject(
     String path, {
     required Object body,
   }) async {
-    final response = await _httpClient.put(
-      _buildUri(path),
-      headers: _headers(withBody: true),
-      body: jsonEncode(body),
+    final response = await _dio.put<dynamic>(
+      path,
+      data: body,
+      options: _options(withBody: true),
     );
-    return _asObject(_decodeResponse(response), path);
+    return _asObject(response.data, path);
   }
 
   Future<void> delete(String path) async {
-    final response = await _httpClient.delete(
-      _buildUri(path),
-      headers: _headers(),
-    );
-    _decodeResponse(response);
+    await _dio.delete<dynamic>(path, options: _options());
   }
 
-  Uri _buildUri(String path, {Map<String, String>? queryParameters}) {
-    final normalizedPath = path.startsWith('/') ? path : '/$path';
-    return Uri.parse(
-      '$_baseUrl$normalizedPath',
-    ).replace(queryParameters: queryParameters);
-  }
-
-  Map<String, String> _headers({bool withBody = false}) {
-    return <String, String>{
-      'Accept': 'application/json',
-      'X-User-Id': _userId,
-      if (withBody) 'Content-Type': 'application/json',
-    };
-  }
-
-  dynamic _decodeResponse(http.Response response) {
-    if (response.statusCode >= 200 && response.statusCode < 300) {
-      if (response.body.isEmpty) {
-        return null;
-      }
-      return jsonDecode(response.body);
-    }
-
-    final body = response.body.trim();
-    throw ApiException(
-      body.isEmpty
-          ? 'Request failed with status ${response.statusCode}.'
-          : 'Request failed with status ${response.statusCode}: $body',
+  /// Builds per-request [Options] carrying the user identity header.
+  /// Dio automatically serializes Map/List bodies to JSON when
+  /// Content-Type is application/json.
+  Options _options({bool withBody = false}) {
+    return Options(
+      headers: <String, String>{
+        'X-User-Id': _userId,
+        if (withBody) 'Content-Type': 'application/json',
+      },
     );
   }
 
@@ -119,7 +106,7 @@ class ApiClient {
       return value;
     }
     if (value is Map) {
-      return value.map((key, value) => MapEntry(key.toString(), value));
+      return value.map((key, v) => MapEntry(key.toString(), v));
     }
     throw ApiException('Expected a JSON object from $path.');
   }
@@ -154,6 +141,10 @@ class ApiConfig {
   }
 }
 
+/// Thrown when the API returns a non-2xx status code or an unexpected shape.
+///
+/// Dio throws [DioException] for network/HTTP errors; this class wraps the
+/// message so call-sites don't need a direct Dio dependency.
 class ApiException implements Exception {
   const ApiException(this.message);
 
