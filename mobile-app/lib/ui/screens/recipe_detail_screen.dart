@@ -2,32 +2,98 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../blocs/pantry/pantry_bloc.dart';
 import '../../blocs/planner/planner_bloc.dart';
 import '../../blocs/recipes/recipes_bloc.dart';
 import '../../data/models/planned_meal.dart';
 import '../../data/models/recipe.dart';
+import '../../data/models/recommendations.dart';
+import '../../data/repositories/recommendation_repository.dart';
 import '../../navigation/app_router.dart';
 import '../../theme/app_theme.dart';
+import '../widgets/api_status_banner.dart';
+import '../widgets/substitution_hint_skeleton.dart';
 
-class RecipeDetailScreen extends StatelessWidget {
+class RecipeDetailScreen extends StatefulWidget {
   const RecipeDetailScreen({super.key, required this.recipeId});
 
   final String recipeId;
+
+  @override
+  State<RecipeDetailScreen> createState() => _RecipeDetailScreenState();
+}
+
+class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
+  Map<String, String> _substitutionHints = const <String, String>{};
+  bool _substitutionsLoading = false;
+  bool _substitutionsError = false;
+  late Future<PantryCoverage> _coverageFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _coverageFuture = _fetchCoverage();
+  }
+
+  /// Fetches pantry coverage from the backend, then automatically chains
+  /// a substitution-hints fetch for any missing ingredients.
+  Future<PantryCoverage> _fetchCoverage() {
+    final repo = context.read<RecommendationRepository>();
+    return repo.fetchPantryCoverage(widget.recipeId).then((coverage) {
+      if (coverage.missingIngredients.isNotEmpty) {
+        if (mounted) {
+          setState(() {
+            _substitutionsLoading = true;
+            _substitutionsError = false;
+          });
+        }
+        repo
+            .fetchSubstitutionHints(coverage.missingIngredients)
+            .then((hints) {
+          if (mounted) {
+            setState(() {
+              _substitutionHints = hints;
+              _substitutionsLoading = false;
+              _substitutionsError = false;
+            });
+          }
+        }).catchError((_) {
+          if (mounted) {
+            setState(() {
+              _substitutionsLoading = false;
+              _substitutionsError = true;
+            });
+          }
+        });
+      } else if (mounted) {
+        setState(() {
+          _substitutionsLoading = false;
+          _substitutionsError = false;
+          _substitutionHints = const <String, String>{};
+        });
+      }
+      return coverage;
+    });
+  }
+
+  /// Resets all async state and retries coverage + hints fetches.
+  void _retryAll() {
+    setState(() {
+      _substitutionHints = const <String, String>{};
+      _substitutionsLoading = false;
+      _substitutionsError = false;
+      _coverageFuture = _fetchCoverage();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
     final recipes = context.watch<RecipesBloc>().state.recipes;
-    final pantryItems = context.watch<PantryBloc>().state.items;
-    final pantrySet = pantryItems
-        .map((item) => item.name.toLowerCase().trim())
-        .where((item) => item.isNotEmpty)
-        .toSet();
+
     Recipe? recipe;
     for (final current in recipes) {
-      if (current.id == recipeId) {
+      if (current.id == widget.recipeId) {
         recipe = current;
         break;
       }
@@ -37,24 +103,13 @@ class RecipeDetailScreen extends StatelessWidget {
       return const Scaffold(body: Center(child: Text('Recipe not found')));
     }
 
-    final missingIngredients = recipe.ingredients
-        .where((ingredient) {
-          return !pantrySet.contains(ingredient.toLowerCase());
-        })
-        .toList(growable: false);
-    final matchedIngredients =
-        recipe.ingredients.length - missingIngredients.length;
-    final pantryCoverage = recipe.ingredients.isEmpty
-        ? 0
-        : ((matchedIngredients / recipe.ingredients.length) * 100).round();
-
     return Scaffold(
       appBar: AppBar(
         title: Text(recipe.title),
         actions: <Widget>[
           IconButton(
             onPressed: () {
-              context.read<RecipesBloc>().add(RecipeFavoriteToggled(recipeId));
+              context.read<RecipesBloc>().add(RecipeFavoriteToggled(widget.recipeId));
             },
             icon: Icon(
               recipe.isFavorite ? Icons.favorite : Icons.favorite_border,
@@ -69,6 +124,7 @@ class RecipeDetailScreen extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.all(AppPadding.md),
         children: <Widget>[
+          // ── Recipe meta ─────────────────────────────────────────────
           Card(
             margin: EdgeInsets.zero,
             child: Padding(
@@ -121,132 +177,187 @@ class RecipeDetailScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: AppPadding.md),
-          Card(
-            margin: EdgeInsets.zero,
-            child: Padding(
-              padding: const EdgeInsets.all(AppPadding.md),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+          // ── Pantry coverage (backend-driven) ─────────────────────────
+          FutureBuilder<PantryCoverage>(
+            future: _coverageFuture,
+            builder: (context, snapshot) {
+              if (snapshot.hasError) {
+                return ApiStatusBanner(
+                  message: 'Could not load pantry coverage',
+                  subtitle: 'Check your connection and try again.',
+                  onRetry: _retryAll,
+                );
+              }
+
+              if (!snapshot.hasData) {
+                return const Card(
+                  margin: EdgeInsets.zero,
+                  child: Padding(
+                    padding: EdgeInsets.all(AppPadding.lg),
+                    child: LinearProgressIndicator(),
+                  ),
+                );
+              }
+
+              final coverage = snapshot.data!;
+              final availableSet = coverage.availableIngredients
+                  .map((e) => e.toLowerCase())
+                  .toSet();
+
+              return Column(
                 children: <Widget>[
-                  Row(
-                    children: <Widget>[
-                      Expanded(
-                        child: Text(
-                          'Pantry coverage',
-                          style: textTheme.titleMedium,
-                        ),
-                      ),
-                      Text(
-                        '$pantryCoverage%',
-                        style: textTheme.headlineSmall?.copyWith(
-                          color: missingIngredients.isEmpty
-                              ? colorScheme.primary
-                              : colorScheme.tertiary,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: AppPadding.xs),
-                  Text(
-                    missingIngredients.isEmpty
-                        ? 'You already have everything needed for this recipe.'
-                        : '$matchedIngredients of ${recipe.ingredients.length} ingredients are already in your pantry.',
-                    style: textTheme.bodyMedium?.copyWith(
-                      color: colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                  const SizedBox(height: AppPadding.md),
-                  ...recipe.ingredients.map((ingredient) {
-                    final normalized = ingredient.toLowerCase();
-                    final available = pantrySet.contains(normalized);
-                    return Container(
-                      margin: const EdgeInsets.only(bottom: AppPadding.sm),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: AppPadding.md,
-                        vertical: AppPadding.sm,
-                      ),
-                      decoration: BoxDecoration(
-                        color: available
-                            ? colorScheme.primaryContainer.withAlpha(120)
-                            : colorScheme.surfaceContainerHighest,
-                        borderRadius: BorderRadius.circular(AppRadius.md),
-                      ),
-                      child: Row(
+                  Card(
+                    margin: EdgeInsets.zero,
+                    child: Padding(
+                      padding: const EdgeInsets.all(AppPadding.md),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: <Widget>[
-                          Icon(
-                            available
-                                ? Icons.check_circle_outline
-                                : Icons.remove_circle_outline,
-                            size: 18,
-                            color: available
-                                ? colorScheme.primary
-                                : colorScheme.tertiary,
+                          Row(
+                            children: <Widget>[
+                              Expanded(
+                                child: Text(
+                                  'Pantry coverage',
+                                  style: textTheme.titleMedium,
+                                ),
+                              ),
+                              Text(
+                                '${coverage.coveragePercent}%',
+                                style: textTheme.headlineSmall?.copyWith(
+                                  color: coverage.missingIngredients.isEmpty
+                                      ? colorScheme.primary
+                                      : colorScheme.tertiary,
+                                ),
+                              ),
+                            ],
                           ),
-                          const SizedBox(width: AppPadding.sm),
-                          Expanded(
-                            child: Text(
-                              ingredient,
-                              style: textTheme.bodyMedium,
-                            ),
-                          ),
+                          const SizedBox(height: AppPadding.xs),
                           Text(
-                            available ? 'Ready' : 'Missing',
-                            style: textTheme.labelMedium?.copyWith(
-                              color: available
-                                  ? colorScheme.primary
-                                  : colorScheme.tertiary,
+                            coverage.missingIngredients.isEmpty
+                                ? 'You already have everything needed for this recipe.'
+                                : '${coverage.matchedCount} of ${coverage.totalCount} ingredients are already in your pantry.',
+                            style: textTheme.bodyMedium?.copyWith(
+                              color: colorScheme.onSurfaceVariant,
                             ),
                           ),
+                          const SizedBox(height: AppPadding.md),
+                          ...recipe!.ingredients.map((ingredient) {
+                            final available =
+                                availableSet.contains(ingredient.toLowerCase());
+                            return Container(
+                              margin:
+                                  const EdgeInsets.only(bottom: AppPadding.sm),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: AppPadding.md,
+                                vertical: AppPadding.sm,
+                              ),
+                              decoration: BoxDecoration(
+                                color: available
+                                    ? colorScheme.primaryContainer.withAlpha(120)
+                                    : colorScheme.surfaceContainerHighest,
+                                borderRadius:
+                                    BorderRadius.circular(AppRadius.md),
+                              ),
+                              child: Row(
+                                children: <Widget>[
+                                  Icon(
+                                    available
+                                        ? Icons.check_circle_outline
+                                        : Icons.remove_circle_outline,
+                                    size: 18,
+                                    color: available
+                                        ? colorScheme.primary
+                                        : colorScheme.tertiary,
+                                  ),
+                                  const SizedBox(width: AppPadding.sm),
+                                  Expanded(
+                                    child: Text(
+                                      ingredient,
+                                      style: textTheme.bodyMedium,
+                                    ),
+                                  ),
+                                  Text(
+                                    available ? 'Ready' : 'Missing',
+                                    style: textTheme.labelMedium?.copyWith(
+                                      color: available
+                                          ? colorScheme.primary
+                                          : colorScheme.tertiary,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }),
                         ],
                       ),
-                    );
-                  }),
-                ],
-              ),
-            ),
-          ),
-          if (missingIngredients.isNotEmpty) ...<Widget>[
-            const SizedBox(height: AppPadding.md),
-            Card(
-              margin: EdgeInsets.zero,
-              child: Padding(
-                padding: const EdgeInsets.all(AppPadding.md),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    Text('Quick substitutions', style: textTheme.titleMedium),
-                    const SizedBox(height: AppPadding.sm),
-                    ...missingIngredients.map((ingredient) {
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: AppPadding.sm),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: <Widget>[
-                            Padding(
-                              padding: const EdgeInsets.only(top: 2),
-                              child: Icon(
-                                Icons.swap_horiz,
-                                size: 16,
-                                color: colorScheme.secondary,
+                    ),
+                  ),
+                  // ── Quick substitutions ──────────────────────────────
+                  if (coverage.missingIngredients.isNotEmpty) ...<Widget>[
+                    const SizedBox(height: AppPadding.md),
+                    if (_substitutionsError)
+                      ApiStatusBanner(
+                        message: 'Could not load substitution hints',
+                        onRetry: _retryAll,
+                      )
+                    else
+                      Card(
+                        margin: EdgeInsets.zero,
+                        child: Padding(
+                          padding: const EdgeInsets.all(AppPadding.md),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: <Widget>[
+                              Text(
+                                'Quick substitutions',
+                                style: textTheme.titleMedium,
                               ),
-                            ),
-                            const SizedBox(width: AppPadding.sm),
-                            Expanded(
-                              child: Text(
-                                _substitutionHint(ingredient),
-                                style: textTheme.bodyMedium,
-                              ),
-                            ),
-                          ],
+                              const SizedBox(height: AppPadding.sm),
+                              ...coverage.missingIngredients.map((ingredient) {
+                                final hasHint = _substitutionHints.containsKey(ingredient);
+                                final showSkeleton = _substitutionsLoading && !hasHint;
+                                return Padding(
+                                  padding: const EdgeInsets.only(
+                                    bottom: AppPadding.sm,
+                                  ),
+                                  child: Row(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: <Widget>[
+                                      Padding(
+                                        padding:
+                                            const EdgeInsets.only(top: 2),
+                                        child: Icon(
+                                          Icons.swap_horiz,
+                                          size: 16,
+                                          color: colorScheme.secondary,
+                                        ),
+                                      ),
+                                      const SizedBox(width: AppPadding.sm),
+                                      Expanded(
+                                        child: showSkeleton
+                                            ? const SubstitutionHintSkeleton()
+                                            : Text(
+                                                _substitutionHints[ingredient] ??
+                                                    '$ingredient: swap with a similar pantry item and adjust cook time',
+                                                style: textTheme.bodyMedium,
+                                              ),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              }),
+                            ],
+                          ),
                         ),
-                      );
-                    }),
+                      ),
                   ],
-                ),
-              ),
-            ),
-          ],
+                ],
+              );
+            },
+          ),
           const SizedBox(height: AppPadding.md),
+          // ── Steps ────────────────────────────────────────────────────
           Card(
             margin: EdgeInsets.zero,
             child: Padding(
@@ -324,7 +435,7 @@ class RecipeDetailScreen extends StatelessWidget {
                 onPressed: () => context.pushNamed(
                   AppRouter.recipeCookName,
                   pathParameters: <String, String>{
-                    AppRouter.recipeIdParam: recipeId,
+                    AppRouter.recipeIdParam: widget.recipeId,
                   },
                 ),
                 icon: const Icon(Icons.play_arrow),
@@ -433,23 +544,6 @@ class RecipeDetailScreen extends StatelessWidget {
         ),
       ),
     );
-  }
-
-  String _substitutionHint(String ingredient) {
-    switch (ingredient.toLowerCase()) {
-      case 'olive oil':
-        return 'olive oil: use butter or neutral cooking oil';
-      case 'spinach':
-        return 'spinach: use kale, lettuce, or frozen greens';
-      case 'rice':
-        return 'rice: use quinoa or pasta';
-      case 'pasta':
-        return 'pasta: use rice or wrap strips';
-      case 'chicken':
-        return 'chicken: use tofu, beans, or egg';
-      default:
-        return '$ingredient: swap with a similar pantry item and adjust cook time';
-    }
   }
 }
 

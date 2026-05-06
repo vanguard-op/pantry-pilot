@@ -7,7 +7,9 @@ import 'data/repositories/pantry_repository.dart';
 import 'data/repositories/planner_repository.dart';
 import 'data/repositories/recipe_repository.dart';
 import 'data/repositories/feedback_repository.dart';
+import 'data/repositories/recommendation_repository.dart';
 import 'data/repositories/settings_repository.dart';
+import 'data/repositories/shopping_repository.dart';
 import 'services/notification_service.dart';
 
 Future<void> main() async {
@@ -18,6 +20,8 @@ Future<void> main() async {
   final plannerRepository = PlannerRepository(apiClient);
   final recipeRepository = RecipeRepository(apiClient);
   final feedbackRepository = FeedbackRepository(apiClient);
+  final recommendationRepository = RecommendationRepository(apiClient);
+  final shoppingRepository = ShoppingRepository(apiClient);
   final notificationService = NotificationService(
     FlutterLocalNotificationsPlugin(),
   );
@@ -38,6 +42,8 @@ Future<void> main() async {
       plannerRepository: plannerRepository,
       recipeRepository: recipeRepository,
       feedbackRepository: feedbackRepository,
+      recommendationRepository: recommendationRepository,
+      shoppingRepository: shoppingRepository,
       notificationService: notificationService,
     ),
   );

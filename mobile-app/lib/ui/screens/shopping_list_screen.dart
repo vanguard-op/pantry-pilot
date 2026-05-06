@@ -4,8 +4,8 @@ import 'package:flutter/services.dart';
 
 import '../../blocs/pantry/pantry_bloc.dart';
 import '../../blocs/planner/planner_bloc.dart';
-import '../../blocs/recipes/recipes_bloc.dart';
-import '../../data/models/pantry_item.dart';
+import '../../data/models/shopping_list_item.dart';
+import '../../data/repositories/shopping_repository.dart';
 import '../../theme/app_theme.dart';
 
 class ShoppingListScreen extends StatefulWidget {
@@ -101,6 +101,15 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
   final Map<String, double> _purchaseQuantities = <String, double>{};
   final TextEditingController _customItemController = TextEditingController();
   final List<String> _customItems = <String>[];
+  List<ShoppingListItem> _generatedItems = const <ShoppingListItem>[];
+  bool _isLoading = true;
+  String? _loadError;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadShoppingList();
+  }
 
   @override
   void dispose() {
@@ -110,9 +119,7 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final pantryItems = context.watch<PantryBloc>().state.items;
     final plannedMeals = context.watch<PlannerBloc>().state.meals;
-    final recipes = context.watch<RecipesBloc>().state.recipes;
     final now = DateTime.now();
     final weekStart = DateTime(now.year, now.month, now.day);
     final weekEnd = weekStart.add(const Duration(days: 7));
@@ -122,39 +129,27 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
         })
         .toList(growable: false);
 
-    final pantrySet = pantryItems
-        .map((item) => item.name.trim().toLowerCase())
-        .where((name) => name.isNotEmpty)
-        .toSet();
-    final recipeById = {for (final recipe in recipes) recipe.id: recipe};
-
-    final missingCounts = <String, int>{};
-    for (final meal in weeklyPlannedMeals) {
-      final recipe = recipeById[meal.recipeId];
-      if (recipe == null) {
-        continue;
-      }
-      for (final ingredient in recipe.ingredients) {
-        final normalized = ingredient.trim().toLowerCase();
-        if (normalized.isEmpty || pantrySet.contains(normalized)) {
-          continue;
-        }
-        missingCounts.update(
-          normalized,
-          (value) => value + 1,
-          ifAbsent: () => 1,
-        );
-      }
-    }
-
-    final generatedItems = missingCounts.keys.toList(growable: false)..sort();
-    final allItems = <String>[...generatedItems, ..._customItems];
+    final missingCounts = <String, int>{
+      for (final item in _generatedItems) item.name: item.neededForMeals,
+    };
+    final generatedItems = _generatedItems
+        .map((item) => item.name)
+        .toList(growable: false);
+    final allItems = <String>{
+      ...generatedItems,
+      ..._customItems,
+    }.toList(growable: false)..sort();
     final groupedItems = _groupShoppingItems(allItems);
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Shopping List'),
         actions: <Widget>[
+          IconButton(
+            tooltip: 'Refresh list',
+            onPressed: _isLoading ? null : _loadShoppingList,
+            icon: const Icon(Icons.refresh),
+          ),
           IconButton(
             tooltip: 'Export list',
             onPressed: allItems.isEmpty
@@ -229,7 +224,26 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
           ),
           const SizedBox(height: AppPadding.sm),
           Expanded(
-            child: allItems.isEmpty
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : _loadError != null
+                ? Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(AppPadding.lg),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: <Widget>[
+                          Text(_loadError!, textAlign: TextAlign.center),
+                          const SizedBox(height: AppPadding.sm),
+                          FilledButton(
+                            onPressed: _loadShoppingList,
+                            child: const Text('Retry'),
+                          ),
+                        ],
+                      ),
+                    ),
+                  )
+                : allItems.isEmpty
                 ? const Center(
                     child: Text(
                       'No missing ingredients for your current plan.',
@@ -401,54 +415,25 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
       return;
     }
 
-    _syncBoughtItemsToPantry(context, confirmed);
+    await _syncBoughtItemsToPantry(context, confirmed);
   }
 
-  void _syncBoughtItemsToPantry(
+  Future<void> _syncBoughtItemsToPantry(
     BuildContext context,
     Map<String, double> bought,
-  ) {
+  ) async {
+    final shoppingRepository = context.read<ShoppingRepository>();
     final pantryBloc = context.read<PantryBloc>();
-    final pantryItems = pantryBloc.state.items;
-    final now = DateTime.now();
-    var createCounter = 0;
+    final messenger = ScaffoldMessenger.of(context);
 
-    for (final entry in bought.entries) {
-      final normalizedName = entry.key.trim().toLowerCase();
-      if (normalizedName.isEmpty) {
-        continue;
-      }
-
-      PantryItem? existing;
-      for (final item in pantryItems) {
-        if (item.name.trim().toLowerCase() == normalizedName) {
-          existing = item;
-          break;
-        }
-      }
-
-      if (existing != null) {
-        pantryBloc.add(
-          PantryItemUpdated(
-            existing.copyWith(quantity: existing.quantity + entry.value),
-          ),
-        );
-        continue;
-      }
-
-      pantryBloc.add(
-        PantryItemAdded(
-          PantryItem(
-            id: '${now.microsecondsSinceEpoch}_${createCounter++}',
-            name: entry.key,
-            quantity: entry.value,
-            unit: 'pcs',
-            storageLocation: 'Pantry',
-            expiryDate: now.add(const Duration(days: 14)),
-            lowStockThreshold: 1,
-          ),
-        ),
-      );
+    await shoppingRepository.syncBoughtItems(bought);
+    if (!mounted) {
+      return;
+    }
+    pantryBloc.add(const PantryRefreshed());
+    await _loadShoppingList();
+    if (!mounted) {
+      return;
     }
 
     setState(() {
@@ -458,11 +443,38 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
       }
     });
 
-    ScaffoldMessenger.of(context).showSnackBar(
+    messenger.showSnackBar(
       SnackBar(
         content: Text('${bought.length} bought item(s) synced to pantry'),
       ),
     );
+  }
+
+  Future<void> _loadShoppingList() async {
+    setState(() {
+      _isLoading = true;
+      _loadError = null;
+    });
+
+    try {
+      final shoppingRepository = context.read<ShoppingRepository>();
+      final items = await shoppingRepository.getShoppingList(days: 7);
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _generatedItems = items;
+        _isLoading = false;
+      });
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _isLoading = false;
+        _loadError = 'Unable to load shopping list from server.';
+      });
+    }
   }
 
   Map<String, List<String>> _groupShoppingItems(List<String> items) {

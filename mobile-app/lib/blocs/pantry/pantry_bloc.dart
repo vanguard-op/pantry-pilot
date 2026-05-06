@@ -18,6 +18,7 @@ class PantryBloc extends Bloc<PantryEvent, PantryState> {
     on<PantryItemAdded>(_onItemAdded);
     on<PantryItemUpdated>(_onItemUpdated);
     on<PantryItemDeleted>(_onItemDeleted);
+    on<PantryRefreshed>(_onRefreshed);
   }
 
   final PantryRepository _pantryRepository;
@@ -56,6 +57,13 @@ class PantryBloc extends Bloc<PantryEvent, PantryState> {
     Emitter<PantryState> emit,
   ) async {
     await _pantryRepository.deleteItem(event.id);
+  }
+
+  Future<void> _onRefreshed(
+    PantryRefreshed event,
+    Emitter<PantryState> emit,
+  ) async {
+    await _pantryRepository.refresh();
   }
 
   @override

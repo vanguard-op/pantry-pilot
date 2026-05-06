@@ -15,6 +15,8 @@ class PantryRepository {
 
   Future<void> initialize() => _refresh();
 
+  Future<void> refresh() => _refresh(force: true);
+
   List<PantryItem> getAll() => List<PantryItem>.unmodifiable(_items);
 
   Stream<List<PantryItem>> watchAll() async* {
@@ -29,8 +31,8 @@ class PantryRepository {
     await _ensureLoaded();
     final created = PantryItem.fromMap(
       await _apiClient.postObject(
-      '/api/v1/pantry',
-      body: _normalizeItem(item).toMap(),
+        '/api/v1/pantry',
+        body: _normalizeItem(item).toMap(),
       ),
     );
     _upsert(created);
@@ -41,13 +43,13 @@ class PantryRepository {
     await _ensureLoaded();
     for (final item in items) {
       final normalized = _normalizeItem(item);
-      final existing = _items.where((entry) {
-        return entry.name.trim().toLowerCase() ==
-            normalized.name.trim().toLowerCase();
-      }).cast<PantryItem?>().firstWhere(
-        (entry) => entry != null,
-        orElse: () => null,
-      );
+      final existing = _items
+          .where((entry) {
+            return entry.name.trim().toLowerCase() ==
+                normalized.name.trim().toLowerCase();
+          })
+          .cast<PantryItem?>()
+          .firstWhere((entry) => entry != null, orElse: () => null);
 
       if (existing == null) {
         final created = PantryItem.fromMap(
@@ -98,8 +100,8 @@ class PantryRepository {
     final normalizedStorage = item.storageLocation.trim();
     final normalizedQuantity = item.quantity <= 0 ? 0.01 : item.quantity;
     final normalizedThreshold = item.lowStockThreshold < 0
-      ? 0.0
-      : item.lowStockThreshold;
+        ? 0.0
+        : item.lowStockThreshold;
 
     return item.copyWith(
       name: normalizedName.isEmpty ? 'Unnamed item' : normalizedName,
@@ -117,8 +119,11 @@ class PantryRepository {
     await _refresh();
   }
 
-  Future<void> _refresh() async {
+  Future<void> _refresh({bool force = false}) async {
     if (_loading) {
+      return;
+    }
+    if (_initialized && !force) {
       return;
     }
 

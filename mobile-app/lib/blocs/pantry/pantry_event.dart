@@ -46,3 +46,7 @@ class PantryItemDeleted extends PantryEvent {
   @override
   List<Object?> get props => <Object?>[id];
 }
+
+class PantryRefreshed extends PantryEvent {
+  const PantryRefreshed();
+}

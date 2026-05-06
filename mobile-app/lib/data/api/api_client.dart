@@ -104,6 +104,19 @@ class ApiClient {
     return _asObject(response.data, path);
   }
 
+  Future<List<dynamic>> postList(String path, {required Object body}) async {
+    final response = await _dio.post<dynamic>(
+      path,
+      data: body,
+      options: _options(withBody: true),
+    );
+    final data = response.data;
+    if (data is List<dynamic>) {
+      return data;
+    }
+    throw ApiException('Expected a JSON list from $path.');
+  }
+
   Future<Map<String, dynamic>> patchObject(
     String path, {
     required Object body,

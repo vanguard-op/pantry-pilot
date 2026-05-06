@@ -9,7 +9,9 @@ import 'data/repositories/pantry_repository.dart';
 import 'data/repositories/planner_repository.dart';
 import 'data/repositories/recipe_repository.dart';
 import 'data/repositories/feedback_repository.dart';
+import 'data/repositories/recommendation_repository.dart';
 import 'data/repositories/settings_repository.dart';
+import 'data/repositories/shopping_repository.dart';
 import 'navigation/app_router.dart';
 import 'services/notification_service.dart';
 import 'theme/app_theme.dart';
@@ -22,6 +24,8 @@ class PantryPilotApp extends StatelessWidget {
     required this.plannerRepository,
     required this.recipeRepository,
     required this.feedbackRepository,
+    required this.recommendationRepository,
+    required this.shoppingRepository,
     required this.notificationService,
   });
 
@@ -30,6 +34,8 @@ class PantryPilotApp extends StatelessWidget {
   final PlannerRepository plannerRepository;
   final RecipeRepository recipeRepository;
   final FeedbackRepository feedbackRepository;
+  final RecommendationRepository recommendationRepository;
+  final ShoppingRepository shoppingRepository;
   final NotificationService notificationService;
 
   @override
@@ -41,6 +47,10 @@ class PantryPilotApp extends StatelessWidget {
         RepositoryProvider<PlannerRepository>.value(value: plannerRepository),
         RepositoryProvider<RecipeRepository>.value(value: recipeRepository),
         RepositoryProvider<FeedbackRepository>.value(value: feedbackRepository),
+        RepositoryProvider<RecommendationRepository>.value(
+          value: recommendationRepository,
+        ),
+        RepositoryProvider<ShoppingRepository>.value(value: shoppingRepository),
         RepositoryProvider<NotificationService>.value(
           value: notificationService,
         ),
@@ -97,9 +107,9 @@ class PantryPilotApp extends StatelessWidget {
               );
 
               if (plannerState.meals.isNotEmpty) {
-                context.read<SettingsRepository>().setFirstPlanCreatedAtIfAbsent(
-                  DateTime.now(),
-                );
+                context
+                    .read<SettingsRepository>()
+                    .setFirstPlanCreatedAtIfAbsent(DateTime.now());
               }
             },
             child: BlocListener<RecipesBloc, RecipesState>(
@@ -111,7 +121,8 @@ class PantryPilotApp extends StatelessWidget {
                   recipes: recipesState.recipes,
                   expiryThresholdDays: settings.expiryThresholdDays,
                   expiryAlertsEnabled: settings.expiryNotificationsEnabled,
-                  mealRemindersEnabled: settings.mealReminderNotificationsEnabled,
+                  mealRemindersEnabled:
+                      settings.mealReminderNotificationsEnabled,
                 );
               },
               child: MaterialApp.router(

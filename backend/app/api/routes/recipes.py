@@ -4,7 +4,7 @@ from fastapi import APIRouter, HTTPException, Query, status
 from sqlmodel import select
 
 from app.api.deps import SessionDep, UserIdDep
-from app.models import Difficulty, Recipe, RecipeCreate, RecipeUpdate
+from app.models import Difficulty, PantryCoverageResponse, PantryItem, Recipe, RecipeCreate, RecipeUpdate
 
 router = APIRouter(prefix="/recipes", tags=["recipes"])
 
@@ -108,3 +108,45 @@ def delete_recipe(recipe_id: str, session: SessionDep, user_id: UserIdDep) -> No
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Recipe not found")
     session.delete(recipe)
     session.commit()
+
+
+@router.get("/{recipe_id}/coverage", response_model=PantryCoverageResponse)
+def get_recipe_coverage(
+    recipe_id: str,
+    session: SessionDep,
+    user_id: UserIdDep,
+) -> PantryCoverageResponse:
+    """Return pantry coverage for a single recipe.
+
+    Computes which of the recipe's ingredients are present in the user's
+    pantry and returns the coverage percentage alongside the split lists.
+    Moving this server-side means future enhancements (partial quantities,
+    expiry awareness, unit normalisation) require no mobile app changes.
+    """
+    recipe = session.get(Recipe, recipe_id)
+    if recipe is None or recipe.user_id != user_id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Recipe not found")
+
+    pantry_names = {
+        item.name.lower()
+        for item in session.exec(
+            select(PantryItem).where(PantryItem.user_id == user_id)
+        ).all()
+    }
+
+    available = [i for i in recipe.ingredients if i.lower() in pantry_names]
+    missing = [i for i in recipe.ingredients if i.lower() not in pantry_names]
+    coverage = (
+        round((len(available) / len(recipe.ingredients)) * 100)
+        if recipe.ingredients
+        else 0
+    )
+
+    return PantryCoverageResponse(
+        recipe_id=recipe_id,
+        coverage_percent=coverage,
+        matched_count=len(available),
+        total_count=len(recipe.ingredients),
+        missing_ingredients=missing,
+        available_ingredients=available,
+    )

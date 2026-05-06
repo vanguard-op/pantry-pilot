@@ -8,9 +8,12 @@ import '../../blocs/planner/planner_bloc.dart';
 import '../../blocs/recipes/recipes_bloc.dart';
 import '../../data/models/pantry_item.dart';
 import '../../data/models/recipe.dart';
+import '../../data/repositories/recommendation_repository.dart';
 import '../../navigation/app_router.dart';
 import '../../data/repositories/settings_repository.dart';
 import '../../theme/app_theme.dart';
+import '../widgets/api_status_banner.dart';
+import '../widgets/substitution_hint_skeleton.dart';
 
 class GuidedCookingScreen extends StatefulWidget {
   const GuidedCookingScreen({
@@ -35,6 +38,9 @@ class _GuidedCookingScreenState extends State<GuidedCookingScreen> {
   int _selectedRating = 0;
   final Map<String, double> _deductionAmounts = <String, double>{};
   final Set<String> _acceptedSubstitutions = <String>{};
+  Map<String, String> _substitutionHints = const <String, String>{};
+  bool _substitutionsLoading = false;
+  bool _substitutionsError = false;
 
   @override
   void initState() {
@@ -47,6 +53,29 @@ class _GuidedCookingScreenState extends State<GuidedCookingScreen> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     _pantryUpdateEnabled = context.read<SettingsRepository>().pantryAutoDeductEnabled;
+    // Fetch hints once; ingredients don't change during a session.
+    if (_substitutionHints.isEmpty && widget.recipe.ingredients.isNotEmpty) {
+      _substitutionsLoading = true;
+      context
+          .read<RecommendationRepository>()
+          .fetchSubstitutionHints(widget.recipe.ingredients)
+          .then((hints) {
+        if (mounted) {
+          setState(() {
+            _substitutionHints = hints;
+            _substitutionsLoading = false;
+            _substitutionsError = false;
+          });
+        }
+      }).catchError((_) {
+        if (mounted) {
+          setState(() {
+            _substitutionsLoading = false;
+            _substitutionsError = true;
+          });
+        }
+      });
+    }
   }
 
   @override
@@ -114,6 +143,37 @@ class _GuidedCookingScreenState extends State<GuidedCookingScreen> {
                 recipe: currentRecipe,
                 pantryItems: pantryItems,
                 acceptedSubstitutions: _acceptedSubstitutions,
+                substitutionHints: _substitutionHints,
+                substitutionsLoading: _substitutionsLoading,
+                substitutionsError: _substitutionsError,
+                onRetrySubstitutions: () {
+                  setState(() {
+                    _substitutionHints = const <String, String>{};
+                    _substitutionsLoading = true;
+                    _substitutionsError = false;
+                  });
+                  // Re-trigger didChangeDependencies won't work here;
+                  // call the fetch directly.
+                  context
+                      .read<RecommendationRepository>()
+                      .fetchSubstitutionHints(currentRecipe.ingredients)
+                      .then((hints) {
+                    if (mounted) {
+                      setState(() {
+                        _substitutionHints = hints;
+                        _substitutionsLoading = false;
+                        _substitutionsError = false;
+                      });
+                    }
+                  }).catchError((_) {
+                    if (mounted) {
+                      setState(() {
+                        _substitutionsLoading = false;
+                        _substitutionsError = true;
+                      });
+                    }
+                  });
+                },
                 onSubstitutionToggled: (ingredient) {
                   setState(() {
                     if (_acceptedSubstitutions.contains(ingredient)) {
@@ -297,6 +357,10 @@ class _PreCookChecklistView extends StatelessWidget {
     required this.recipe,
     required this.pantryItems,
     required this.acceptedSubstitutions,
+    required this.substitutionHints,
+    required this.substitutionsLoading,
+    required this.substitutionsError,
+    required this.onRetrySubstitutions,
     required this.onSubstitutionToggled,
     required this.onCancel,
     required this.onStartCooking,
@@ -305,6 +369,10 @@ class _PreCookChecklistView extends StatelessWidget {
   final Recipe recipe;
   final List<PantryItem> pantryItems;
   final Set<String> acceptedSubstitutions;
+  final Map<String, String> substitutionHints;
+  final bool substitutionsLoading;
+  final bool substitutionsError;
+  final VoidCallback onRetrySubstitutions;
   final ValueChanged<String> onSubstitutionToggled;
   final VoidCallback onCancel;
   final VoidCallback onStartCooking;
@@ -371,6 +439,11 @@ class _PreCookChecklistView extends StatelessWidget {
             ),
           ),
           const SizedBox(height: AppPadding.md),
+          if (substitutionsError)
+            ApiStatusBanner(
+              message: 'Could not load substitution hints',
+              onRetry: onRetrySubstitutions,
+            ),
           ...ingredientStatus.map((status) {
             final substitutionAccepted = acceptedSubstitutions.contains(status.ingredient);
             return Card(
@@ -439,10 +512,14 @@ class _PreCookChecklistView extends StatelessWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: <Widget>[
-                            Text(
-                              _substitutionHint(status.ingredient),
-                              style: textTheme.bodyMedium,
-                            ),
+                            substitutionsLoading &&
+                                    !substitutionHints.containsKey(status.ingredient)
+                                ? const SubstitutionHintSkeleton()
+                                : Text(
+                                    substitutionHints[status.ingredient] ??
+                                        '${status.ingredient}: swap with a similar pantry item and adjust cook time',
+                                    style: textTheme.bodyMedium,
+                                  ),
                             const SizedBox(height: AppPadding.sm),
                             Align(
                               alignment: Alignment.centerLeft,
@@ -572,23 +649,6 @@ class _IngredientChecklistStatus {
       available: matchedItem != null,
       item: matchedItem,
     );
-  }
-}
-
-String _substitutionHint(String ingredient) {
-  switch (ingredient.toLowerCase()) {
-    case 'olive oil':
-      return 'olive oil: use butter or neutral cooking oil';
-    case 'spinach':
-      return 'spinach: use kale, lettuce, or frozen greens';
-    case 'rice':
-      return 'rice: use quinoa or pasta';
-    case 'pasta':
-      return 'pasta: use rice or wrap strips';
-    case 'chicken':
-      return 'chicken: use tofu, beans, or egg';
-    default:
-      return '$ingredient: swap with a similar pantry item and adjust cook time';
   }
 }
 

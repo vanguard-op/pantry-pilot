@@ -130,6 +130,33 @@ class ShoppingListResponse(SQLModel):
     items: List[ShoppingListItem]
 
 
+class RecipeRecommendation(SQLModel):
+    recipe: Recipe
+    score: int
+    pantry_coverage: int
+    matching_ingredients: List[str]
+    use_soon_ingredients: List[str]
+    recent_plan_count: int
+
+
+class LeftoverSuggestion(SQLModel):
+    recipe: Recipe
+    source_recipe_title: str
+    shared_ingredients: List[str]
+    reason: str
+
+
+class PlannerRecommendationsResponse(SQLModel):
+    ranked: List[RecipeRecommendation]
+    favorites: List[Recipe]
+    repeats: List[Recipe]
+
+
+class DashboardRecommendationsResponse(SQLModel):
+    use_soon: List[RecipeRecommendation]
+    leftovers: List[LeftoverSuggestion]
+
+
 class SettingsModel(SQLModel, table=True):
     user_id: str = Field(primary_key=True)
     household_size: int = Field(default=1, ge=1, le=12)
@@ -184,3 +211,23 @@ class KpiSummary(SQLModel):
     planned_meals_last_7_days: int
     cooking_sessions_last_7_days: int
     pantry_use_soon_ratio: float
+
+
+class SubstitutionHint(SQLModel):
+    ingredient: str
+    hint: str
+
+
+class SubstitutionHintsResponse(SQLModel):
+    hints: List[SubstitutionHint]
+
+
+class PantryCoverageResponse(SQLModel):
+    """Pantry coverage summary for a single recipe."""
+
+    recipe_id: str
+    coverage_percent: int
+    matched_count: int
+    total_count: int
+    missing_ingredients: List[str]
+    available_ingredients: List[str]
