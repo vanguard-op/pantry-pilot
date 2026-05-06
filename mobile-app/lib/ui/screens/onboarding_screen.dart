@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../blocs/onboarding/onboarding_bloc.dart';
 import '../../navigation/app_router.dart';
+import '../../theme/app_theme.dart';
 
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
@@ -42,6 +43,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   @override
   Widget build(BuildContext context) {
     final state = context.watch<OnboardingBloc>().state;
+    final textTheme = Theme.of(context).textTheme;
 
     return BlocListener<OnboardingBloc, OnboardingState>(
       listenWhen: (previous, current) => !previous.completed && current.completed,
@@ -51,13 +53,13 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         body: Form(
           key: _formKey,
           child: ListView(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(AppPadding.md),
             children: <Widget>[
-              const Text(
+              Text(
                 'Set up your kitchen profile',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                style: textTheme.headlineMedium,
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: AppPadding.md),
               const Text('Household size'),
               Slider(
                 value: _householdSize.toDouble(),
@@ -70,7 +72,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 },
               ),
               Text('$_householdSize people'),
-              const SizedBox(height: 12),
+              const SizedBox(height: AppPadding.md),
               DropdownButtonFormField<String>(
                 initialValue: _skillLevel,
                 decoration: const InputDecoration(labelText: 'Cooking skill level'),
@@ -85,7 +87,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   }
                 },
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: AppPadding.md),
               TextFormField(
                 controller: _dietaryController,
                 decoration: const InputDecoration(
@@ -93,12 +95,12 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 ),
                 maxLines: 2,
               ),
-              const SizedBox(height: 16),
-              const Text(
+              const SizedBox(height: AppPadding.md),
+              Text(
                 'Quick pantry seed checklist',
-                style: TextStyle(fontWeight: FontWeight.bold),
+                style: textTheme.titleMedium,
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: AppPadding.sm),
               ...staples.map(
                 (staple) => CheckboxListTile(
                   value: _selectedStaples.contains(staple),
@@ -115,7 +117,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   },
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: AppPadding.md),
               ElevatedButton(
                 onPressed: state.status == OnboardingStatus.saving
                     ? null

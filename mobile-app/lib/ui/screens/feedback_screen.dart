@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../data/models/feedback_entry.dart';
 import '../../data/repositories/feedback_repository.dart';
+import '../../theme/app_theme.dart';
 
 class FeedbackScreen extends StatefulWidget {
   const FeedbackScreen({super.key});
@@ -25,25 +26,27 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
   @override
   Widget build(BuildContext context) {
     final feedbackRepository = context.read<FeedbackRepository>();
+    final textTheme = Theme.of(context).textTheme;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Feedback & Triage')),
       body: Column(
         children: <Widget>[
           Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(AppPadding.md),
             child: Form(
               key: _formKey,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: <Widget>[
+                  Text('Share your feedback', style: textTheme.titleMedium),
+                  const SizedBox(height: AppPadding.sm),
                   TextFormField(
                     controller: _messageController,
                     minLines: 2,
                     maxLines: 4,
                     decoration: const InputDecoration(
                       labelText: 'What should we improve?',
-                      border: OutlineInputBorder(),
                     ),
                     validator: (value) {
                       if (value == null || value.trim().isEmpty) {
@@ -52,12 +55,11 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
                       return null;
                     },
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: AppPadding.md),
                   DropdownButtonFormField<FeedbackCategory>(
                     initialValue: _category,
                     decoration: const InputDecoration(
                       labelText: 'Category',
-                      border: OutlineInputBorder(),
                     ),
                     items: FeedbackCategory.values
                         .map(
@@ -74,7 +76,7 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
                       setState(() => _category = value);
                     },
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: AppPadding.md),
                   FilledButton.icon(
                     onPressed: () async {
                       if (_formKey.currentState?.validate() != true) {
@@ -113,15 +115,15 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
                 }
 
                 return ListView.separated(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(AppPadding.md),
                   itemCount: entries.length,
                   separatorBuilder: (context, index) =>
-                      const SizedBox(height: 8),
+                      const SizedBox(height: AppPadding.sm),
                   itemBuilder: (context, index) {
                     final entry = entries[index];
                     return Card(
                       child: Padding(
-                        padding: const EdgeInsets.all(12),
+                        padding: const EdgeInsets.all(AppPadding.sm),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: <Widget>[
@@ -137,14 +139,13 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 8),
+                            const SizedBox(height: AppPadding.sm),
                             Text(entry.message),
-                            const SizedBox(height: 8),
+                            const SizedBox(height: AppPadding.sm),
                             DropdownButtonFormField<FeedbackStatus>(
                               initialValue: entry.status,
                               decoration: const InputDecoration(
                                 labelText: 'Triage status',
-                                border: OutlineInputBorder(),
                               ),
                               items: FeedbackStatus.values
                                   .map(

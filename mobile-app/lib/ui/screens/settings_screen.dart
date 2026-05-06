@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../data/repositories/settings_repository.dart';
+import '../../theme/app_theme.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -43,17 +44,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     final settings = context.read<SettingsRepository>();
+    final textTheme = Theme.of(context).textTheme;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Settings')),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(AppPadding.md),
         children: <Widget>[
-          const Text(
+          Text(
             'Household profile',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+            style: textTheme.titleMedium,
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: AppPadding.md),
           Text('Household size: $_householdSize'),
           Slider(
             value: _householdSize.toDouble(),
@@ -83,21 +85,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
               setState(() => _skillLevel = value);
             },
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: AppPadding.md),
           TextField(
             controller: _dietaryNotesController,
             maxLines: 3,
             decoration: const InputDecoration(
               labelText: 'Dietary preferences',
-              border: OutlineInputBorder(),
             ),
           ),
-          const SizedBox(height: 20),
-          const Text(
+          const SizedBox(height: AppPadding.lg),
+          Text(
             'Notifications',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+            style: textTheme.titleMedium,
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: AppPadding.sm),
           SwitchListTile(
             value: _expiryNotificationsEnabled,
             title: const Text('Expiry alerts'),
@@ -114,12 +115,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
               setState(() => _mealReminderNotificationsEnabled = value);
             },
           ),
-          const SizedBox(height: 20),
-          const Text(
+          const SizedBox(height: AppPadding.lg),
+          Text(
             'Pantry behavior',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+            style: textTheme.titleMedium,
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: AppPadding.sm),
           Text('Use-soon threshold: $_expiryThresholdDays days'),
           Slider(
             value: _expiryThresholdDays.toDouble(),
@@ -141,7 +142,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               setState(() => _pantryAutoDeductEnabled = value);
             },
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: AppPadding.md),
           FilledButton.icon(
             onPressed: () async {
               await settings.saveHouseholdProfile(

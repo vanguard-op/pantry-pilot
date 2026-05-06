@@ -5,6 +5,7 @@ import '../../blocs/pantry/pantry_bloc.dart';
 import '../../blocs/planner/planner_bloc.dart';
 import '../../blocs/recipes/recipes_bloc.dart';
 import '../../data/models/pantry_item.dart';
+import '../../theme/app_theme.dart';
 
 class ShoppingListScreen extends StatefulWidget {
   const ShoppingListScreen({super.key});
@@ -60,7 +61,7 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
       body: Column(
         children: <Widget>[
           Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(AppPadding.md),
             child: Row(
               children: <Widget>[
                 Expanded(
@@ -68,12 +69,11 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
                     controller: _customItemController,
                     decoration: const InputDecoration(
                       labelText: 'Add custom item',
-                      border: OutlineInputBorder(),
                     ),
                     onSubmitted: (_) => _addCustomItem(),
                   ),
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: AppPadding.sm),
                 FilledButton(
                   onPressed: _addCustomItem,
                   child: const Text('Add'),
@@ -82,7 +82,7 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
             ),
           ),
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
+            padding: const EdgeInsets.symmetric(horizontal: AppPadding.md),
             child: SizedBox(
               width: double.infinity,
               child: FilledButton.icon(
@@ -94,7 +94,7 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
               ),
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: AppPadding.sm),
           Expanded(
             child: allItems.isEmpty
                 ? const Center(
@@ -181,7 +181,7 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
                 mainAxisSize: MainAxisSize.min,
                 children: selectedItems.map((item) {
                   return Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
+                    padding: const EdgeInsets.only(bottom: AppPadding.md),
                     child: TextField(
                       controller: controllers[item],
                       keyboardType: const TextInputType.numberWithOptions(
@@ -190,7 +190,6 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
                       decoration: InputDecoration(
                         labelText: item,
                         helperText: 'Quantity purchased',
-                        border: const OutlineInputBorder(),
                       ),
                     ),
                   );

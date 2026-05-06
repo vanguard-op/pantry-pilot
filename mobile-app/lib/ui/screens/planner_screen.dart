@@ -9,12 +9,14 @@ import '../../data/models/planned_meal.dart';
 import '../../data/models/recipe.dart';
 import '../../data/recommendations/recommendation_engine.dart';
 import '../../navigation/app_router.dart';
+import '../../theme/app_theme.dart';
 
 class PlannerScreen extends StatelessWidget {
   const PlannerScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
     final plannerState = context.watch<PlannerBloc>().state;
     final pantryItems = context.watch<PantryBloc>().state.items;
     final recipes = context.watch<RecipesBloc>().state.recipes;
@@ -50,7 +52,7 @@ class PlannerScreen extends StatelessWidget {
         ],
       ),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(AppPadding.md),
         children: next7Days
             .map((day) {
               final quickPicks = rankedRecommendations
@@ -76,25 +78,25 @@ class PlannerScreen extends StatelessWidget {
                         ? Theme.of(context).colorScheme.secondaryContainer
                         : null,
                     child: Padding(
-                      padding: const EdgeInsets.all(12),
+                      padding: const EdgeInsets.all(AppPadding.sm),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: <Widget>[
                           Text(
                             day.toLocal().toString().split(' ').first,
-                            style: const TextStyle(fontWeight: FontWeight.bold),
+                            style: textTheme.titleMedium,
                           ),
-                          const SizedBox(height: 8),
+                          const SizedBox(height: AppPadding.sm),
                           ...daily.map((meal) {
                             final recipe = _findRecipeById(recipes, meal.recipeId);
                             return LongPressDraggable<PlannedMeal>(
                               data: meal,
                               feedback: Material(
                                 child: Container(
-                                  padding: const EdgeInsets.all(8),
+                                  padding: const EdgeInsets.all(AppPadding.sm),
                                   decoration: BoxDecoration(
                                     color: Theme.of(context).colorScheme.primaryContainer,
-                                    borderRadius: BorderRadius.circular(8),
+                                    borderRadius: BorderRadius.circular(AppRadius.sm),
                                   ),
                                   child: Text(recipe?.title ?? 'Planned meal'),
                                 ),
@@ -127,12 +129,12 @@ class PlannerScreen extends StatelessWidget {
                             );
                           }),
                           if (quickPicks.isNotEmpty) ...<Widget>[
-                            const SizedBox(height: 8),
-                            const Text(
+                            const SizedBox(height: AppPadding.sm),
+                            Text(
                               'Quick add',
-                              style: TextStyle(fontWeight: FontWeight.w600),
+                              style: textTheme.titleSmall,
                             ),
-                            const SizedBox(height: 8),
+                            const SizedBox(height: AppPadding.sm),
                             Wrap(
                               spacing: 8,
                               runSpacing: 8,
@@ -212,13 +214,13 @@ class PlannerScreen extends StatelessWidget {
                       onChanged: (value) =>
                           setState(() => selectedSlot = value ?? 'Dinner'),
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: AppPadding.md),
                     if (favoriteRecipes.isNotEmpty) ...<Widget>[
-                      const Text(
+                      Text(
                         'Favorites',
-                        style: TextStyle(fontWeight: FontWeight.w600),
+                        style: Theme.of(context).textTheme.titleSmall,
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: AppPadding.sm),
                       Wrap(
                         spacing: 8,
                         runSpacing: 8,
@@ -232,14 +234,14 @@ class PlannerScreen extends StatelessWidget {
                             )
                             .toList(growable: false),
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: AppPadding.md),
                     ],
                     if (repeatRecipes.isNotEmpty) ...<Widget>[
-                      const Text(
+                      Text(
                         'Repeat meals',
-                        style: TextStyle(fontWeight: FontWeight.w600),
+                        style: Theme.of(context).textTheme.titleSmall,
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: AppPadding.sm),
                       Wrap(
                         spacing: 8,
                         runSpacing: 8,
@@ -253,7 +255,7 @@ class PlannerScreen extends StatelessWidget {
                             )
                             .toList(growable: false),
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: AppPadding.md),
                     ],
                     DropdownButtonFormField<String>(
                       initialValue: selectedRecipe?.id,
@@ -281,10 +283,10 @@ class PlannerScreen extends StatelessWidget {
                       },
                     ),
                     if (selectedRecipe != null) ...<Widget>[
-                      const SizedBox(height: 12),
+                      const SizedBox(height: AppPadding.md),
                       Text(
                         'Selected: ${selectedRecipe!.title}',
-                        style: const TextStyle(fontWeight: FontWeight.w600),
+                        style: Theme.of(context).textTheme.titleSmall,
                       ),
                     ],
                   ],

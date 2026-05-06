@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../blocs/pantry/pantry_bloc.dart';
 import '../../data/models/pantry_item.dart';
+import '../../theme/app_theme.dart';
 
 class PantryScreen extends StatelessWidget {
   const PantryScreen({super.key});
@@ -143,11 +144,11 @@ class PantryScreen extends StatelessWidget {
                         }
                       },
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: AppPadding.sm),
                     Row(
                       children: <Widget>[
                         const Text('Expiry:'),
-                        const SizedBox(width: 8),
+                        const SizedBox(width: AppPadding.sm),
                         Text(expiryDate.toLocal().toString().split(' ').first),
                         const Spacer(),
                         TextButton(

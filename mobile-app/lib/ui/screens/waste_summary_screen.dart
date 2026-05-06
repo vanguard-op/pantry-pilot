@@ -4,12 +4,14 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../blocs/pantry/pantry_bloc.dart';
 import '../../blocs/planner/planner_bloc.dart';
 import '../../blocs/recipes/recipes_bloc.dart';
+import '../../theme/app_theme.dart';
 
 class WasteSummaryScreen extends StatelessWidget {
   const WasteSummaryScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
     final pantryItems = context.watch<PantryBloc>().state.items;
     final plannedMeals = context.watch<PlannerBloc>().state.meals;
     final recipes = context.watch<RecipesBloc>().state.recipes;
@@ -46,7 +48,7 @@ class WasteSummaryScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('Weekly Waste Summary')),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(AppPadding.md),
         children: <Widget>[
           _SummaryCard(
             title: 'Expired items',
@@ -54,14 +56,14 @@ class WasteSummaryScreen extends StatelessWidget {
             note: 'Lower is better. Aim for zero each week.',
             icon: Icons.delete_sweep_outlined,
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: AppPadding.md),
           _SummaryCard(
             title: 'Use-soon pressure',
             value: '$useSoonCount items',
             note: 'These items should be prioritized in next meals.',
             icon: Icons.warning_amber_outlined,
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: AppPadding.md),
           _SummaryCard(
             title: 'Missing ingredients in weekly plan',
             value: '$missingForPlan',
@@ -69,12 +71,12 @@ class WasteSummaryScreen extends StatelessWidget {
                 'Shopping list closes these gaps and prevents wasteful duplicates.',
             icon: Icons.shopping_cart_outlined,
           ),
-          const SizedBox(height: 20),
-          const Text(
+          const SizedBox(height: AppPadding.lg),
+          Text(
             'Suggested next actions',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+            style: textTheme.titleMedium,
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: AppPadding.sm),
           const Text('1. Plan meals using current use-soon ingredients first.'),
           const Text(
             '2. Buy only missing ingredients from the generated shopping list.',
@@ -103,7 +105,7 @@ class _SummaryCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       child: ListTile(
-        contentPadding: const EdgeInsets.all(16),
+        contentPadding: const EdgeInsets.all(AppPadding.md),
         leading: Icon(icon),
         title: Text(title),
         subtitle: Text(note),
@@ -111,7 +113,7 @@ class _SummaryCard extends StatelessWidget {
           value,
           style: Theme.of(
             context,
-          ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+          ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
         ),
       ),
     );

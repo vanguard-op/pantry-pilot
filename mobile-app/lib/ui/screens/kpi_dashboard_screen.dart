@@ -5,6 +5,7 @@ import '../../blocs/onboarding/onboarding_bloc.dart';
 import '../../blocs/pantry/pantry_bloc.dart';
 import '../../blocs/planner/planner_bloc.dart';
 import '../../data/repositories/settings_repository.dart';
+import '../../theme/app_theme.dart';
 
 class KpiDashboardScreen extends StatelessWidget {
   const KpiDashboardScreen({super.key});
@@ -29,7 +30,7 @@ class KpiDashboardScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('KPI Dashboard')),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(AppPadding.md),
         children: <Widget>[
           _KpiCard(
             title: 'Activation',
@@ -39,21 +40,21 @@ class KpiDashboardScreen extends StatelessWidget {
                 ? 'Onboarding complete. Next milestone is first plan.'
                 : 'User has not completed onboarding yet.',
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: AppPadding.md),
           _KpiCard(
             title: 'Retention Proxy',
             subtitle: 'Planning and cooking activity in last 7 days',
             metric: '$plannedMealsThisWeek meals planned / $cookingSessionsLast7 cooks',
             hint: 'Target trend: steady week-over-week planner and cooking reuse.',
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: AppPadding.md),
           _KpiCard(
             title: 'Waste-Reduction Proxy',
             subtitle: 'Share of pantry items expiring within 3 days',
             metric: '${(atRiskRatio * 100).toStringAsFixed(1)}% at risk',
             hint: 'Lower is better. Use-soon nudges should push this number down.',
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: AppPadding.md),
           _KpiCard(
             title: 'Baseline Counts',
             subtitle: 'Current inventory and planning footprint',
@@ -83,21 +84,21 @@ class _KpiCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(AppPadding.md),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
             Text(title, style: Theme.of(context).textTheme.titleMedium),
-            const SizedBox(height: 4),
+            const SizedBox(height: AppPadding.xs),
             Text(subtitle, style: Theme.of(context).textTheme.bodySmall),
-            const SizedBox(height: 12),
+            const SizedBox(height: AppPadding.md),
             Text(
               metric,
               style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                 fontWeight: FontWeight.w700,
               ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: AppPadding.sm),
             Text(hint),
           ],
         ),
