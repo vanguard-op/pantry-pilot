@@ -17,7 +17,7 @@ class RecipesState extends Equatable {
 
   List<Recipe> get filteredRecipes {
     final q = searchTerm.toLowerCase();
-    return recipes.where((recipe) {
+    final filtered = recipes.where((recipe) {
       final matchesSearch =
           q.isEmpty ||
           recipe.title.toLowerCase().contains(q) ||
@@ -33,7 +33,16 @@ class RecipesState extends Equatable {
           recipe.tags.any((tag) => tag.toLowerCase() == dietFilter!.toLowerCase());
 
       return matchesSearch && matchesTime && matchesSkill && matchesDiet;
-    }).toList(growable: false);
+    }).toList(growable: true);
+
+    filtered.sort((left, right) {
+      if (left.isFavorite != right.isFavorite) {
+        return left.isFavorite ? -1 : 1;
+      }
+      return left.title.toLowerCase().compareTo(right.title.toLowerCase());
+    });
+
+    return filtered;
   }
 
   RecipesState copyWith({
