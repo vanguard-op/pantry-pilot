@@ -164,7 +164,10 @@ class AppRouter {
                                   'This recipe could not be loaded for cooking.',
                             );
                           }
-                          return GuidedCookingScreen(recipe: recipe);
+                          return GuidedCookingScreen(
+                            recipe: recipe,
+                            plannedMealId: state.uri.queryParameters['plannedMealId'],
+                          );
                         },
                       ),
                     ],

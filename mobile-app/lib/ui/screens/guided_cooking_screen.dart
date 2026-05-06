@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../blocs/cooking/cooking_bloc.dart';
 import '../../blocs/pantry/pantry_bloc.dart';
+import '../../blocs/planner/planner_bloc.dart';
 import '../../blocs/recipes/recipes_bloc.dart';
 import '../../data/models/pantry_item.dart';
 import '../../data/models/recipe.dart';
@@ -12,9 +13,14 @@ import '../../data/repositories/settings_repository.dart';
 import '../../theme/app_theme.dart';
 
 class GuidedCookingScreen extends StatefulWidget {
-  const GuidedCookingScreen({super.key, required this.recipe});
+  const GuidedCookingScreen({
+    super.key,
+    required this.recipe,
+    this.plannedMealId,
+  });
 
   final Recipe recipe;
+  final String? plannedMealId;
 
   @override
   State<GuidedCookingScreen> createState() => _GuidedCookingScreenState();
@@ -232,6 +238,9 @@ class _GuidedCookingScreenState extends State<GuidedCookingScreen> {
   Future<void> _finishCooking(BuildContext context, Recipe recipe) async {
     if (_pantryUpdateEnabled) {
       _applyPantryDeductions(context, recipe);
+    }
+    if (widget.plannedMealId != null && widget.plannedMealId!.isNotEmpty) {
+      context.read<PlannerBloc>().add(PlannedMealDeleted(widget.plannedMealId!));
     }
 
     if (!mounted) {

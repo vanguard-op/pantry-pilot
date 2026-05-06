@@ -109,6 +109,21 @@ class PlannerScreen extends StatelessWidget {
                                   spacing: 4,
                                   children: <Widget>[
                                     IconButton(
+                                      tooltip: 'Cook now',
+                                      icon: const Icon(Icons.play_circle_outline),
+                                      onPressed: recipe == null
+                                          ? null
+                                          : () => context.pushNamed(
+                                              AppRouter.recipeCookName,
+                                              pathParameters: <String, String>{
+                                                AppRouter.recipeIdParam: recipe.id,
+                                              },
+                                              queryParameters: <String, String>{
+                                                'plannedMealId': meal.id,
+                                              },
+                                            ),
+                                    ),
+                                    IconButton(
                                       tooltip: 'Edit slot',
                                       icon: const Icon(Icons.edit_outlined),
                                       onPressed: () => _showEditMealSlotDialog(
