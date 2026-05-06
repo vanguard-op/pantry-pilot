@@ -1,3 +1,5 @@
+import 'feedback_enum_extensions.dart';
+
 enum FeedbackCategory { bug, suggestion, other }
 
 enum FeedbackStatus { open, inReview, resolved }
@@ -21,8 +23,8 @@ class FeedbackEntry {
     return FeedbackEntry(
       id: map['id'] as String? ?? '',
       message: map['message'] as String? ?? '',
-      category: parseCategory(map['category'] as String? ?? 'other'),
-      status: parseStatus(map['status'] as String? ?? 'open'),
+      category: (map['category'] as String? ?? 'other').toFeedbackCategory(),
+      status: (map['status'] as String? ?? 'open').toFeedbackStatus(),
       createdAt:
           DateTime.tryParse(map['created_at'] as String? ?? '') ??
           DateTime.now(),
@@ -43,42 +45,9 @@ class FeedbackEntry {
     return <String, dynamic>{
       'id': id,
       'message': message,
-      'category': categoryToApi(category),
-      'status': statusToApi(status),
+      'category': category.apiValue,
+      'status': status.apiValue,
       'created_at': createdAt.toIso8601String(),
-    };
-  }
-
-  static String categoryToApi(FeedbackCategory value) {
-    return switch (value) {
-      FeedbackCategory.bug => 'bug',
-      FeedbackCategory.suggestion => 'suggestion',
-      FeedbackCategory.other => 'other',
-    };
-  }
-
-  static String statusToApi(FeedbackStatus value) {
-    return switch (value) {
-      FeedbackStatus.open => 'open',
-      FeedbackStatus.inReview => 'in_review',
-      FeedbackStatus.resolved => 'resolved',
-    };
-  }
-
-  static FeedbackCategory parseCategory(String value) {
-    return switch (value) {
-      'bug' => FeedbackCategory.bug,
-      'suggestion' => FeedbackCategory.suggestion,
-      _ => FeedbackCategory.other,
-    };
-  }
-
-  static FeedbackStatus parseStatus(String value) {
-    return switch (value) {
-      'open' => FeedbackStatus.open,
-      'in_review' => FeedbackStatus.inReview,
-      'resolved' => FeedbackStatus.resolved,
-      _ => FeedbackStatus.open,
     };
   }
 }

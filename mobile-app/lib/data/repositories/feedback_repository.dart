@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import '../api/api_client.dart';
+import '../models/feedback_enum_extensions.dart';
 import '../models/feedback_entry.dart';
 
 class FeedbackRepository {
@@ -40,7 +41,7 @@ class FeedbackRepository {
       '/api/v1/feedback',
       body: <String, dynamic>{
         'message': normalizedMessage,
-        'category': FeedbackEntry.categoryToApi(category),
+        'category': category.apiValue,
       },
     );
     await _refresh();
@@ -52,7 +53,7 @@ class FeedbackRepository {
   }) async {
     await _apiClient.patchObject(
       '/api/v1/feedback/$id',
-      body: <String, dynamic>{'status': FeedbackEntry.statusToApi(status)},
+      body: <String, dynamic>{'status': status.apiValue},
     );
     await _refresh();
   }
@@ -65,11 +66,14 @@ class FeedbackRepository {
     _loading = true;
     try {
       final rawEntries = await _apiClient.getList('/api/v1/feedback');
-      _entries = rawEntries
-          .whereType<Map>()
-          .map((entry) => FeedbackEntry.fromMap(entry.cast<String, dynamic>()))
-          .toList(growable: false)
-        ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      _entries =
+          rawEntries
+              .whereType<Map>()
+              .map(
+                (entry) => FeedbackEntry.fromMap(entry.cast<String, dynamic>()),
+              )
+              .toList(growable: false)
+            ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
       _initialized = true;
       _controller.add(getAll());
     } finally {
