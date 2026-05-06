@@ -14,6 +14,7 @@ class RecipesScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     final state = context.watch<RecipesBloc>().state;
 
     return Scaffold(
@@ -109,7 +110,7 @@ class RecipesScreen extends StatelessWidget {
                         recipe.isFavorite
                             ? Icons.favorite
                             : Icons.favorite_border,
-                        color: recipe.isFavorite ? Colors.red : null,
+                        color: recipe.isFavorite ? colorScheme.tertiary : null,
                       ),
                       onPressed: () => context.read<RecipesBloc>().add(
                         RecipeFavoriteToggled(recipe.id),

@@ -14,6 +14,8 @@ class RecipeDetailScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
     final recipes = context.watch<RecipesBloc>().state.recipes;
     final pantryItems = context.watch<PantryBloc>().state.items;
     final pantrySet = pantryItems
@@ -44,9 +46,9 @@ class RecipeDetailScreen extends StatelessWidget {
           ),
           Text('Difficulty: ${recipe.difficulty}'),
           const SizedBox(height: 12),
-          const Text(
+          Text(
             'Ingredients',
-            style: TextStyle(fontWeight: FontWeight.bold),
+            style: textTheme.titleMedium,
           ),
           ...recipe.ingredients.map((ingredient) {
             final normalized = ingredient.toLowerCase();
@@ -56,7 +58,7 @@ class RecipeDetailScreen extends StatelessWidget {
                 Icon(
                   available ? Icons.check_circle_outline : Icons.error_outline,
                   size: 18,
-                  color: available ? Colors.green : Colors.orange,
+                  color: available ? colorScheme.primary : colorScheme.tertiary,
                 ),
                 const SizedBox(width: 8),
                 Text(ingredient),
@@ -64,9 +66,9 @@ class RecipeDetailScreen extends StatelessWidget {
             );
           }),
           const SizedBox(height: 12),
-          const Text(
+          Text(
             'Quick substitutions',
-            style: TextStyle(fontWeight: FontWeight.bold),
+            style: textTheme.titleMedium,
           ),
           const SizedBox(height: 8),
           ...recipe.ingredients.where((ingredient) {
@@ -75,7 +77,7 @@ class RecipeDetailScreen extends StatelessWidget {
             return Text('- ${_substitutionHint(ingredient)}');
           }),
           const SizedBox(height: 12),
-          const Text('Steps', style: TextStyle(fontWeight: FontWeight.bold)),
+          Text('Steps', style: textTheme.titleMedium),
           ...recipe.steps.asMap().entries.map(
             (entry) => Padding(
               padding: const EdgeInsets.only(bottom: 8),

@@ -11,6 +11,7 @@ class FavoritesScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     final recipesState = context.watch<RecipesBloc>().state;
     final plannerMeals = context.watch<PlannerBloc>().state.meals;
     final favoriteRecipes = recipesState.recipes
@@ -49,7 +50,7 @@ class FavoritesScreen extends StatelessWidget {
                     ),
                     trailing: IconButton(
                       icon: const Icon(Icons.favorite),
-                      color: Colors.red,
+                      color: colorScheme.tertiary,
                       onPressed: () {
                         context.read<RecipesBloc>().add(
                           RecipeFavoriteToggled(recipe.id),

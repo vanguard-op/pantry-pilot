@@ -33,6 +33,8 @@ class _GuidedCookingScreenState extends State<GuidedCookingScreen> {
         },
         child: BlocBuilder<CookingBloc, CookingState>(
           builder: (context, state) {
+          final colorScheme = Theme.of(context).colorScheme;
+          final textTheme = Theme.of(context).textTheme;
           final currentRecipe = state.recipe;
           if (currentRecipe == null) {
             return const Scaffold(
@@ -49,18 +51,15 @@ class _GuidedCookingScreenState extends State<GuidedCookingScreen> {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: <Widget>[
-                      const Icon(
+                      Icon(
                         Icons.check_circle,
                         size: 64,
-                        color: Colors.green,
+                        color: colorScheme.primary,
                       ),
                       const SizedBox(height: 12),
                       Text(
                         'You finished ${currentRecipe.title}',
-                        style: const TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                        ),
+                        style: textTheme.headlineMedium,
                         textAlign: TextAlign.center,
                       ),
                       const SizedBox(height: 8),
@@ -89,10 +88,7 @@ class _GuidedCookingScreenState extends State<GuidedCookingScreen> {
                 children: <Widget>[
                   Text(
                     step.description,
-                    style: const TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w600,
-                    ),
+                    style: textTheme.headlineMedium,
                   ),
                   const SizedBox(height: 12),
                   Wrap(
@@ -111,10 +107,7 @@ class _GuidedCookingScreenState extends State<GuidedCookingScreen> {
                           const SizedBox(height: 8),
                           Text(
                             state.mmss,
-                            style: const TextStyle(
-                              fontSize: 40,
-                              fontWeight: FontWeight.bold,
-                            ),
+                            style: textTheme.displayMedium,
                           ),
                           const SizedBox(height: 8),
                           Row(
