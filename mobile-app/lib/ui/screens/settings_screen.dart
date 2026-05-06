@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../blocs/auth/auth_bloc.dart';
 import '../../blocs/pantry/pantry_bloc.dart';
 import '../../blocs/planner/planner_bloc.dart';
 import '../../blocs/recipes/recipes_bloc.dart';
@@ -148,6 +149,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
             },
           ),
           const SizedBox(height: AppPadding.md),
+          const SizedBox(height: AppPadding.lg),
+          const Divider(),
+          const SizedBox(height: AppPadding.sm),
+          ListTile(
+            leading: const Icon(Icons.logout),
+            title: const Text('Sign out'),
+            subtitle: const Text('Sign out of your account'),
+            onTap: () {
+              context.read<AuthBloc>().add(const AuthSignOutRequested());
+            },
+          ),
+          const SizedBox(height: AppPadding.lg),
           FilledButton.icon(
             onPressed: () async {
               final pantryItems = context.read<PantryBloc>().state.items;

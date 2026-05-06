@@ -5,20 +5,22 @@ import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 
 class ApiClient {
+  /// [tokenProvider] is called before every request. It should return:
+  /// - A Cognito access token string in production / staging.
+  /// - `null` to fall back to the local-dev [ApiConfig.defaultUserId] header.
   ApiClient._({
     required Dio dio,
     required CacheOptions cacheOptions,
-    required String userId,
+    required Future<String?> Function() tokenProvider,
   }) : _dio = dio,
        _cacheOptions = cacheOptions,
-       _userId = userId;
+       _tokenProvider = tokenProvider;
 
   static Future<ApiClient> create({
     Dio? dio,
     String? baseUrl,
-    String? userId,
+    Future<String?> Function()? tokenProvider,
   }) async {
-    final resolvedUserId = userId ?? ApiConfig.defaultUserId;
     final resolvedBaseUrl = baseUrl ?? ApiConfig.defaultBaseUrl;
     final cacheStore = await _buildCacheStore();
 
@@ -35,13 +37,13 @@ class ApiClient {
     return ApiClient._(
       dio: builtDio,
       cacheOptions: cacheOptions,
-      userId: resolvedUserId,
+      tokenProvider: tokenProvider ?? () async => null,
     );
   }
 
   final Dio _dio;
   final CacheOptions _cacheOptions;
-  final String _userId;
+  final Future<String?> Function() _tokenProvider;
 
   /// Shared base options - timeout, base URL, and default headers.
   static Dio _buildDio(String baseUrl) {
@@ -71,7 +73,7 @@ class ApiClient {
     final response = await _dio.get<dynamic>(
       path,
       queryParameters: queryParameters,
-      options: _options(withCache: true),
+      options: await _options(withCache: true),
     );
     final data = response.data;
     if (data is List<dynamic>) {
@@ -87,7 +89,7 @@ class ApiClient {
     final response = await _dio.get<dynamic>(
       path,
       queryParameters: queryParameters,
-      options: _options(withCache: true),
+      options: await _options(withCache: true),
     );
     return _asObject(response.data, path);
   }
@@ -99,7 +101,7 @@ class ApiClient {
     final response = await _dio.post<dynamic>(
       path,
       data: body,
-      options: _options(withBody: true),
+      options: await _options(withBody: true),
     );
     return _asObject(response.data, path);
   }
@@ -108,7 +110,7 @@ class ApiClient {
     final response = await _dio.post<dynamic>(
       path,
       data: body,
-      options: _options(withBody: true),
+      options: await _options(withBody: true),
     );
     final data = response.data;
     if (data is List<dynamic>) {
@@ -124,7 +126,7 @@ class ApiClient {
     final response = await _dio.patch<dynamic>(
       path,
       data: body,
-      options: _options(withBody: true),
+      options: await _options(withBody: true),
     );
     return _asObject(response.data, path);
   }
@@ -136,30 +138,38 @@ class ApiClient {
     final response = await _dio.put<dynamic>(
       path,
       data: body,
-      options: _options(withBody: true),
+      options: await _options(withBody: true),
     );
     return _asObject(response.data, path);
   }
 
   Future<void> delete(String path) async {
-    await _dio.delete<dynamic>(path, options: _options());
+    await _dio.delete<dynamic>(path, options: await _options());
   }
 
-  /// Builds per-request [Options] carrying the user identity header.
-  /// Dio automatically serializes Map/List bodies to JSON when
-  /// Content-Type is application/json.
-  Options _options({bool withBody = false, bool withCache = false}) {
-    final requestOptions = Options(
-      headers: <String, String>{
-        'X-User-Id': _userId,
-        if (withBody) 'Content-Type': 'application/json',
-      },
-    );
+  /// Builds per-request [Options].
+  ///
+  /// In production the [_tokenProvider] returns a Cognito access token which
+  /// is sent as `Authorization: Bearer <token>`.  In local dev it returns null
+  /// and we fall back to the `X-User-Id` header so the backend's dev fallback
+  /// path is exercised without standing up a real Cognito pool.
+  Future<Options> _options({
+    bool withBody = false,
+    bool withCache = false,
+  }) async {
+    final token = await _tokenProvider();
+    final headers = <String, String>{
+      if (token != null)
+        'Authorization': 'Bearer $token'
+      else
+        'X-User-Id': ApiConfig.defaultUserId,
+      if (withBody) 'Content-Type': 'application/json',
+    };
 
+    final requestOptions = Options(headers: headers);
     if (!withCache) {
       return requestOptions;
     }
-
     return _cacheOptions.toOptions().copyWith(
       headers: requestOptions.headers,
       contentType: requestOptions.contentType,

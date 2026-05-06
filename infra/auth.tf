@@ -18,11 +18,15 @@ resource "aws_cognito_user_pool" "this" {
 resource "aws_cognito_user_pool_client" "this" {
   name                                 = "pantry-pilot-client"
   user_pool_id                         = aws_cognito_user_pool.this.id
-  callback_urls                        = ["https://example.com", "http://localhost:8000/docs/oauth2-redirect"]
+  callback_urls                        = ["pantrypilot://auth", "https://example.com", "http://localhost:8000/docs/oauth2-redirect"]
+  logout_urls                          = ["pantrypilot://auth/logout"]
   allowed_oauth_flows_user_pool_client = true
-  allowed_oauth_flows                  = ["code", "implicit"]
+  allowed_oauth_flows                  = ["code"]
   allowed_oauth_scopes                 = ["email", "openid", "profile"]
   supported_identity_providers         = ["COGNITO"]
+
+  # Required for PKCE (mobile OAuth2 code flow)
+  prevent_user_existence_errors = "ENABLED"
 }
 
 resource "aws_cognito_user_pool_domain" "this" {

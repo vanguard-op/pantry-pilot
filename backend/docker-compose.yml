@@ -23,6 +23,10 @@ services:
       DATABASE_URL: postgresql+psycopg://pantry_user:pantry_pass@db:5432/pantry_pilot
       APP_ENV: dev
       ALLOWED_ORIGINS: http://localhost:3000,http://localhost:8080
+      # Leave these empty to use the X-User-Id fallback in local dev.
+      # Set both to enable Cognito JWT verification in staging/production.
+      COGNITO_REGION: ""
+      COGNITO_USER_POOL_ID: ""
     ports:
       - "8000:8000"
     depends_on:

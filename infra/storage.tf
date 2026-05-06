@@ -7,7 +7,7 @@ module "media_bucket" {
   control_object_ownership = true
   object_ownership         = "ObjectWriter"
 
-  cors_rule = jsonencode([
+  cors_rule = [
     {
       allowed_headers = ["*"]
       allowed_methods = ["GET", "POST", "PUT", "DELETE"]
@@ -15,5 +15,5 @@ module "media_bucket" {
       expose_headers  = []
       max_age_seconds = 3000
     }
-  ])
+  ]
 }

@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import 'blocs/auth/auth_bloc.dart';
 import 'blocs/onboarding/onboarding_bloc.dart';
 import 'blocs/pantry/pantry_bloc.dart';
 import 'blocs/planner/planner_bloc.dart';
 import 'blocs/recipes/recipes_bloc.dart';
+import 'data/repositories/auth_repository.dart';
 import 'data/repositories/pantry_repository.dart';
 import 'data/repositories/planner_repository.dart';
 import 'data/repositories/recipe_repository.dart';
@@ -19,6 +21,7 @@ import 'theme/app_theme.dart';
 class PantryPilotApp extends StatelessWidget {
   const PantryPilotApp({
     super.key,
+    required this.authRepository,
     required this.settingsRepository,
     required this.pantryRepository,
     required this.plannerRepository,
@@ -29,6 +32,7 @@ class PantryPilotApp extends StatelessWidget {
     required this.notificationService,
   });
 
+  final AuthRepository authRepository;
   final SettingsRepository settingsRepository;
   final PantryRepository pantryRepository;
   final PlannerRepository plannerRepository;
@@ -42,6 +46,7 @@ class PantryPilotApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiRepositoryProvider(
       providers: <RepositoryProvider<dynamic>>[
+        RepositoryProvider<AuthRepository>.value(value: authRepository),
         RepositoryProvider<SettingsRepository>.value(value: settingsRepository),
         RepositoryProvider<PantryRepository>.value(value: pantryRepository),
         RepositoryProvider<PlannerRepository>.value(value: plannerRepository),
@@ -57,6 +62,11 @@ class PantryPilotApp extends StatelessWidget {
       ],
       child: MultiBlocProvider(
         providers: <BlocProvider<dynamic>>[
+          BlocProvider<AuthBloc>(
+            create: (context) =>
+                AuthBloc(authRepository: context.read<AuthRepository>())
+                  ..add(const AuthCheckRequested()),
+          ),
           BlocProvider<OnboardingBloc>(
             create: (context) => OnboardingBloc(
               settingsRepository: context.read<SettingsRepository>(),

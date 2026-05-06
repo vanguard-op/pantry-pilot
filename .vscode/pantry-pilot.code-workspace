@@ -1,0 +1,13 @@
+{
+	"folders": [
+		{
+			"path": ".."
+		}
+	],
+	"settings": {
+		"terminal.integrated.env.windows": {
+			"AWS_PROFILE": "vanguard:main",
+			"AWS_REGION": "af-south-1"
+		}
+	}
+}

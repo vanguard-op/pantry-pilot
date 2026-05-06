@@ -3,6 +3,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 import 'app.dart';
 import 'data/api/api_client.dart';
+import 'data/repositories/auth_repository.dart';
 import 'data/repositories/pantry_repository.dart';
 import 'data/repositories/planner_repository.dart';
 import 'data/repositories/recipe_repository.dart';
@@ -14,7 +15,11 @@ import 'services/notification_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  final apiClient = await ApiClient.create();
+  final authRepository = AuthRepository();
+  await authRepository.initialize();
+  final apiClient = await ApiClient.create(
+    tokenProvider: authRepository.getAccessToken,
+  );
   final settingsRepository = SettingsRepository(apiClient);
   final pantryRepository = PantryRepository(apiClient);
   final plannerRepository = PlannerRepository(apiClient);
@@ -37,6 +42,7 @@ Future<void> main() async {
 
   runApp(
     PantryPilotApp(
+      authRepository: authRepository,
       settingsRepository: settingsRepository,
       pantryRepository: pantryRepository,
       plannerRepository: plannerRepository,

@@ -3,10 +3,12 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pantry_pilot/blocs/onboarding/onboarding_bloc.dart';
 
+import '../blocs/auth/auth_bloc.dart';
 import '../blocs/recipes/recipes_bloc.dart';
 import '../data/models/recipe.dart';
 import '../ui/screens/guided_cooking_screen.dart';
 import '../ui/screens/home_shell.dart';
+import '../ui/screens/login_screen.dart';
 import '../ui/screens/onboarding_screen.dart';
 import '../ui/screens/pantry_screen.dart';
 import '../ui/screens/planner_screen.dart';
@@ -22,6 +24,7 @@ import '../ui/screens/settings_screen.dart';
 
 class AppRouter {
   static const onboardingName = 'onboarding';
+  static const loginName = 'login';
   static const homeName = 'home';
   static const pantryName = 'pantry';
   static const plannerName = 'planner';
@@ -36,6 +39,7 @@ class AppRouter {
   static const settingsName = 'settings';
 
   static const onboardingPath = '/onboarding';
+  static const loginPath = '/login';
   static const homePath = '/home';
   static const pantryPath = '/pantry';
   static const plannerPath = '/planner';
@@ -54,10 +58,21 @@ class AppRouter {
   static final appRouter = GoRouter(
     initialLocation: AppRouter.homePath,
     redirect: (context, state) {
+      // 1. Auth gate — redirect to login when not authenticated.
+      final authStatus = context.read<AuthBloc>().state.status;
+      final isLoginRoute = state.matchedLocation == AppRouter.loginPath;
+      if (authStatus == AuthStatus.unauthenticated && !isLoginRoute) {
+        return AppRouter.loginPath;
+      }
+      if (authStatus == AuthStatus.authenticated && isLoginRoute) {
+        return AppRouter.homePath;
+      }
+
+      // 2. Onboarding gate (only when authenticated).
       final onboardingComplete = context.read<OnboardingBloc>().state.completed;
       final isOnboardingRoute =
           state.matchedLocation == AppRouter.onboardingPath;
-      if (!onboardingComplete && !isOnboardingRoute) {
+      if (!onboardingComplete && !isOnboardingRoute && !isLoginRoute) {
         return AppRouter.onboardingPath;
       }
       if (onboardingComplete && isOnboardingRoute) {
@@ -66,6 +81,11 @@ class AppRouter {
       return null;
     },
     routes: <RouteBase>[
+      GoRoute(
+        name: AppRouter.loginName,
+        path: AppRouter.loginPath,
+        builder: (context, state) => const LoginScreen(),
+      ),
       GoRoute(
         name: AppRouter.onboardingName,
         path: AppRouter.onboardingPath,
@@ -166,7 +186,8 @@ class AppRouter {
                           }
                           return GuidedCookingScreen(
                             recipe: recipe,
-                            plannedMealId: state.uri.queryParameters['plannedMealId'],
+                            plannedMealId:
+                                state.uri.queryParameters['plannedMealId'],
                           );
                         },
                       ),

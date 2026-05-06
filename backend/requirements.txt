@@ -5,3 +5,5 @@ psycopg[binary]
 python-dotenv
 pydantic-settings
 alembic
+python-jose[cryptography]
+httpx
