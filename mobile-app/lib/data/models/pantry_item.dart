@@ -1,6 +1,4 @@
-import 'package:hive/hive.dart';
-
-class PantryItem extends HiveObject {
+class PantryItem {
   PantryItem({
     required this.id,
     required this.name,

@@ -1,8 +1,6 @@
-import 'package:hive/hive.dart';
-
 import 'recipe_step.dart';
 
-class Recipe extends HiveObject {
+class Recipe {
   Recipe({
     required this.id,
     required this.title,

@@ -1,6 +1,4 @@
-import 'package:hive/hive.dart';
-
-class PlannedMeal extends HiveObject {
+class PlannedMeal {
   PlannedMeal({
     required this.id,
     required this.recipeId,
