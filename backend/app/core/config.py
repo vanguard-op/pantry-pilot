@@ -14,6 +14,7 @@ class Settings(BaseSettings):
         alias="DATABASE_URL",
     )
     allowed_origins: str = Field(default="*", alias="ALLOWED_ORIGINS")
+    recipe_seed_user_id: str = Field(default="mobile-user-1", alias="RECIPE_SEED_USER_ID")
 
     @property
     def allowed_origins_list(self) -> List[str]:
