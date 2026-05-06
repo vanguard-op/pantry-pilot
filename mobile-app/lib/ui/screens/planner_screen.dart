@@ -132,7 +132,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
                             ? Theme.of(context).colorScheme.secondaryContainer
                             : null,
                         child: Padding(
-                          padding: const EdgeInsets.all(AppPadding.sm),
+                          padding: const EdgeInsets.all(AppPadding.md),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: <Widget>[

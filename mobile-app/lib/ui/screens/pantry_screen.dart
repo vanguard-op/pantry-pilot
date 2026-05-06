@@ -37,6 +37,7 @@ class PantryScreen extends StatelessWidget {
               child: Text('No pantry items yet. Add your first item.'),
             )
           : ListView.builder(
+              padding: const EdgeInsets.only(bottom: 80),
               itemCount: items.length,
               itemBuilder: (context, index) {
                 final item = items[index];
