@@ -40,7 +40,7 @@ class FeedbackRepository {
       '/api/v1/feedback',
       body: <String, dynamic>{
         'message': normalizedMessage,
-        'category': _serializeCategory(category),
+        'category': FeedbackEntry.categoryToApi(category),
       },
     );
     await _refresh();
@@ -52,7 +52,7 @@ class FeedbackRepository {
   }) async {
     await _apiClient.patchObject(
       '/api/v1/feedback/$id',
-      body: <String, dynamic>{'status': _serializeStatus(status)},
+      body: <String, dynamic>{'status': FeedbackEntry.statusToApi(status)},
     );
     await _refresh();
   }
@@ -67,7 +67,7 @@ class FeedbackRepository {
       final rawEntries = await _apiClient.getList('/api/v1/feedback');
       _entries = rawEntries
           .whereType<Map>()
-          .map((entry) => _deserialize(entry.cast<String, dynamic>()))
+          .map((entry) => FeedbackEntry.fromMap(entry.cast<String, dynamic>()))
           .toList(growable: false)
         ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
       _initialized = true;
@@ -75,50 +75,5 @@ class FeedbackRepository {
     } finally {
       _loading = false;
     }
-  }
-
-  FeedbackEntry _deserialize(Map<String, dynamic> json) {
-    return FeedbackEntry(
-      id: json['id'] as String? ?? '',
-      message: json['message'] as String? ?? '',
-      category: _parseCategory(json['category'] as String? ?? 'other'),
-      status: _parseStatus(json['status'] as String? ?? 'open'),
-      createdAt:
-          DateTime.tryParse(json['created_at'] as String? ?? '') ??
-          DateTime.now(),
-    );
-  }
-
-  String _serializeCategory(FeedbackCategory value) {
-    return switch (value) {
-      FeedbackCategory.bug => 'bug',
-      FeedbackCategory.suggestion => 'suggestion',
-      FeedbackCategory.other => 'other',
-    };
-  }
-
-  String _serializeStatus(FeedbackStatus value) {
-    return switch (value) {
-      FeedbackStatus.open => 'open',
-      FeedbackStatus.inReview => 'in_review',
-      FeedbackStatus.resolved => 'resolved',
-    };
-  }
-
-  FeedbackCategory _parseCategory(String value) {
-    return switch (value) {
-      'bug' => FeedbackCategory.bug,
-      'suggestion' => FeedbackCategory.suggestion,
-      _ => FeedbackCategory.other,
-    };
-  }
-
-  FeedbackStatus _parseStatus(String value) {
-    return switch (value) {
-      'open' => FeedbackStatus.open,
-      'in_review' => FeedbackStatus.inReview,
-      'resolved' => FeedbackStatus.resolved,
-      _ => FeedbackStatus.open,
-    };
   }
 }

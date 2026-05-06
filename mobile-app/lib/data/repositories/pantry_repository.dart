@@ -28,7 +28,7 @@ class PantryRepository {
   Future<void> addItem(PantryItem item) async {
     await _apiClient.postObject(
       '/api/v1/pantry',
-      body: _serializeCreate(_normalizeItem(item)),
+      body: _normalizeItem(item).toMap(),
     );
     await _refresh();
   }
@@ -48,20 +48,14 @@ class PantryRepository {
       if (existing == null) {
         await _apiClient.postObject(
           '/api/v1/pantry',
-          body: _serializeCreate(normalized),
+          body: normalized.toMap(),
         );
         continue;
       }
 
       await _apiClient.patchObject(
         '/api/v1/pantry/${existing.id}',
-        body: <String, dynamic>{
-          'quantity': existing.quantity + normalized.quantity,
-          'unit': normalized.unit,
-          'storage_location': normalized.storageLocation,
-          'expiry_date': _serializeDate(normalized.expiryDate),
-          'low_stock_threshold': normalized.lowStockThreshold,
-        },
+        body: normalized.copyWith(quantity: existing.quantity + normalized.quantity).toMap(),
       );
     }
     await _refresh();
@@ -70,7 +64,7 @@ class PantryRepository {
   Future<void> updateItem(PantryItem item) async {
     await _apiClient.patchObject(
       '/api/v1/pantry/${item.id}',
-      body: _serializeUpdate(_normalizeItem(item)),
+      body: _normalizeItem(item).toMap(),
     );
     await _refresh();
   }
@@ -115,7 +109,7 @@ class PantryRepository {
       final rawItems = await _apiClient.getList('/api/v1/pantry');
       _items = rawItems
           .whereType<Map>()
-          .map((item) => _deserialize(item.cast<String, dynamic>()))
+          .map((item) => PantryItem.fromMap(item.cast<String, dynamic>()))
           .toList(growable: false)
         ..sort((a, b) => a.expiryDate.compareTo(b.expiryDate));
       _initialized = true;
@@ -123,49 +117,5 @@ class PantryRepository {
     } finally {
       _loading = false;
     }
-  }
-
-  Map<String, dynamic> _serializeCreate(PantryItem item) {
-    return <String, dynamic>{
-      'name': item.name,
-      'quantity': item.quantity,
-      'unit': item.unit,
-      'storage_location': item.storageLocation,
-      'expiry_date': _serializeDate(item.expiryDate),
-      'low_stock_threshold': item.lowStockThreshold,
-    };
-  }
-
-  Map<String, dynamic> _serializeUpdate(PantryItem item) {
-    return <String, dynamic>{
-      'name': item.name,
-      'quantity': item.quantity,
-      'unit': item.unit,
-      'storage_location': item.storageLocation,
-      'expiry_date': _serializeDate(item.expiryDate),
-      'low_stock_threshold': item.lowStockThreshold,
-    };
-  }
-
-  PantryItem _deserialize(Map<String, dynamic> json) {
-    return PantryItem(
-      id: json['id'] as String? ?? '',
-      name: json['name'] as String? ?? 'Unnamed item',
-      quantity: (json['quantity'] as num?)?.toDouble() ?? 1,
-      unit: json['unit'] as String? ?? 'pcs',
-      storageLocation: json['storage_location'] as String? ?? 'Pantry',
-      expiryDate:
-          DateTime.tryParse(json['expiry_date'] as String? ?? '') ??
-          DateTime.now().add(const Duration(days: 30)),
-      lowStockThreshold:
-          (json['low_stock_threshold'] as num?)?.toDouble() ?? 1,
-    );
-  }
-
-  String _serializeDate(DateTime value) {
-    return DateTime(value.year, value.month, value.day)
-        .toIso8601String()
-        .split('T')
-        .first;
   }
 }

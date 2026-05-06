@@ -32,7 +32,7 @@ class PlannerRepository {
       id: meal.id,
       recipeId: meal.recipeId,
       date: DateTime(meal.date.year, meal.date.month, meal.date.day),
-      slot: meal.slot.trim(),
+      slot: meal.slot.trim().isEmpty ? 'Dinner' : meal.slot.trim(),
     );
 
     await _ensureLoaded();
@@ -40,20 +40,12 @@ class PlannerRepository {
     if (exists) {
       await _apiClient.patchObject(
         '/api/v1/planner/${normalizedMeal.id}',
-        body: <String, dynamic>{
-          'recipe_id': normalizedMeal.recipeId,
-          'date': _serializeDate(normalizedMeal.date),
-          'slot': normalizedMeal.slot,
-        },
+        body: normalizedMeal.toMap(),
       );
     } else {
       await _apiClient.postObject(
         '/api/v1/planner',
-        body: <String, dynamic>{
-          'recipe_id': normalizedMeal.recipeId,
-          'date': _serializeDate(normalizedMeal.date),
-          'slot': normalizedMeal.slot,
-        },
+        body: normalizedMeal.toMap(),
       );
     }
     await _refresh();
@@ -81,7 +73,7 @@ class PlannerRepository {
       final rawMeals = await _apiClient.getList('/api/v1/planner');
       _meals = rawMeals
           .whereType<Map>()
-          .map((meal) => _deserialize(meal.cast<String, dynamic>()))
+          .map((meal) => PlannedMeal.fromMap(meal.cast<String, dynamic>()))
           .toList(growable: false)
         ..sort((a, b) {
           final dateCompare = a.date.compareTo(b.date);
@@ -95,21 +87,5 @@ class PlannerRepository {
     } finally {
       _loading = false;
     }
-  }
-
-  PlannedMeal _deserialize(Map<String, dynamic> json) {
-    return PlannedMeal(
-      id: json['id'] as String? ?? '',
-      recipeId: json['recipe_id'] as String? ?? '',
-      date: DateTime.parse(json['date'] as String),
-      slot: json['slot'] as String? ?? 'Dinner',
-    );
-  }
-
-  String _serializeDate(DateTime value) {
-    return DateTime(value.year, value.month, value.day)
-        .toIso8601String()
-        .split('T')
-        .first;
   }
 }

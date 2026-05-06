@@ -1,13 +1,16 @@
 import '../api/api_client.dart';
+import '../models/settings_snapshot.dart';
 
 class SettingsRepository {
   SettingsRepository(this._apiClient);
 
   final ApiClient _apiClient;
-  _SettingsSnapshot _settings = const _SettingsSnapshot();
+  SettingsSnapshot _settings = const SettingsSnapshot();
 
   Future<void> initialize() async {
-    _settings = _deserialize(await _apiClient.getObject('/api/v1/settings'));
+    _settings = SettingsSnapshot.fromMap(
+      await _apiClient.getObject('/api/v1/settings'),
+    );
   }
 
   bool get onboardingComplete => _settings.onboardingComplete;
@@ -106,58 +109,8 @@ class SettingsRepository {
   }
 
   Future<void> _update(Map<String, dynamic> payload) async {
-    _settings = _deserialize(
+    _settings = SettingsSnapshot.fromMap(
       await _apiClient.putObject('/api/v1/settings', body: payload),
     );
   }
-
-  _SettingsSnapshot _deserialize(Map<String, dynamic> json) {
-    return _SettingsSnapshot(
-      householdSize: (json['household_size'] as num?)?.toInt() ?? 1,
-      skillLevel: json['skill_level'] as String? ?? 'Beginner',
-      dietaryNotes: json['dietary_notes'] as String? ?? '',
-      onboardingComplete: json['onboarding_complete'] as bool? ?? false,
-      firstPlanCreatedAt: DateTime.tryParse(
-        json['first_plan_created_at'] as String? ?? '',
-      ),
-      cookingSessionDates:
-          (json['cooking_session_dates'] as List<dynamic>? ?? const <dynamic>[])
-              .whereType<String>()
-              .toList(growable: false),
-      expiryThresholdDays:
-          (json['expiry_threshold_days'] as num?)?.toInt() ?? 3,
-      expiryNotificationsEnabled:
-          json['expiry_notifications_enabled'] as bool? ?? true,
-      mealReminderNotificationsEnabled:
-          json['meal_reminder_notifications_enabled'] as bool? ?? true,
-      pantryAutoDeductEnabled:
-          json['pantry_auto_deduct_enabled'] as bool? ?? true,
-    );
-  }
-}
-
-class _SettingsSnapshot {
-  const _SettingsSnapshot({
-    this.householdSize = 1,
-    this.skillLevel = 'Beginner',
-    this.dietaryNotes = '',
-    this.onboardingComplete = false,
-    this.firstPlanCreatedAt,
-    this.cookingSessionDates = const <String>[],
-    this.expiryThresholdDays = 3,
-    this.expiryNotificationsEnabled = true,
-    this.mealReminderNotificationsEnabled = true,
-    this.pantryAutoDeductEnabled = true,
-  });
-
-  final int householdSize;
-  final String skillLevel;
-  final String dietaryNotes;
-  final bool onboardingComplete;
-  final DateTime? firstPlanCreatedAt;
-  final List<String> cookingSessionDates;
-  final int expiryThresholdDays;
-  final bool expiryNotificationsEnabled;
-  final bool mealReminderNotificationsEnabled;
-  final bool pantryAutoDeductEnabled;
 }

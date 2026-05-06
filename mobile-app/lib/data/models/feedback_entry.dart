@@ -17,6 +17,18 @@ class FeedbackEntry {
   final FeedbackStatus status;
   final DateTime createdAt;
 
+  factory FeedbackEntry.fromMap(Map<String, dynamic> map) {
+    return FeedbackEntry(
+      id: map['id'] as String? ?? '',
+      message: map['message'] as String? ?? '',
+      category: parseCategory(map['category'] as String? ?? 'other'),
+      status: parseStatus(map['status'] as String? ?? 'open'),
+      createdAt:
+          DateTime.tryParse(map['created_at'] as String? ?? '') ??
+          DateTime.now(),
+    );
+  }
+
   FeedbackEntry copyWith({FeedbackStatus? status}) {
     return FeedbackEntry(
       id: id,
@@ -31,53 +43,42 @@ class FeedbackEntry {
     return <String, dynamic>{
       'id': id,
       'message': message,
-      'category': category.name,
-      'status': status.name,
-      'createdAt': createdAt.toIso8601String(),
+      'category': categoryToApi(category),
+      'status': statusToApi(status),
+      'created_at': createdAt.toIso8601String(),
     };
   }
 
-  static FeedbackEntry? fromMap(Map<dynamic, dynamic> map) {
-    final id = map['id'];
-    final message = map['message'];
-    final categoryName = map['category'];
-    final statusName = map['status'];
-    final createdAtRaw = map['createdAt'];
+  static String categoryToApi(FeedbackCategory value) {
+    return switch (value) {
+      FeedbackCategory.bug => 'bug',
+      FeedbackCategory.suggestion => 'suggestion',
+      FeedbackCategory.other => 'other',
+    };
+  }
 
-    if (id is! String ||
-        message is! String ||
-        categoryName is! String ||
-        statusName is! String ||
-        createdAtRaw is! String) {
-      return null;
-    }
+  static String statusToApi(FeedbackStatus value) {
+    return switch (value) {
+      FeedbackStatus.open => 'open',
+      FeedbackStatus.inReview => 'in_review',
+      FeedbackStatus.resolved => 'resolved',
+    };
+  }
 
-    final category = FeedbackCategory.values
-        .where((value) => value.name == categoryName)
-        .cast<FeedbackCategory?>()
-        .firstWhere(
-          (value) => value != null,
-          orElse: () => FeedbackCategory.other,
-        );
-    final status = FeedbackStatus.values
-        .where((value) => value.name == statusName)
-        .cast<FeedbackStatus?>()
-        .firstWhere(
-          (value) => value != null,
-          orElse: () => FeedbackStatus.open,
-        );
-    final createdAt = DateTime.tryParse(createdAtRaw);
+  static FeedbackCategory parseCategory(String value) {
+    return switch (value) {
+      'bug' => FeedbackCategory.bug,
+      'suggestion' => FeedbackCategory.suggestion,
+      _ => FeedbackCategory.other,
+    };
+  }
 
-    if (createdAt == null || message.trim().isEmpty) {
-      return null;
-    }
-
-    return FeedbackEntry(
-      id: id,
-      message: message.trim(),
-      category: category ?? FeedbackCategory.other,
-      status: status ?? FeedbackStatus.open,
-      createdAt: createdAt,
-    );
+  static FeedbackStatus parseStatus(String value) {
+    return switch (value) {
+      'open' => FeedbackStatus.open,
+      'in_review' => FeedbackStatus.inReview,
+      'resolved' => FeedbackStatus.resolved,
+      _ => FeedbackStatus.open,
+    };
   }
 }
