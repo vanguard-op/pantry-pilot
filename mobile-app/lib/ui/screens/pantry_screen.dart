@@ -7,9 +7,14 @@ import '../../data/models/pantry_item.dart';
 import '../../theme/app_theme.dart';
 import '../widgets/api_status_banner.dart';
 
-class PantryScreen extends StatelessWidget {
+class PantryScreen extends StatefulWidget {
   const PantryScreen({super.key});
 
+  @override
+  State<PantryScreen> createState() => _PantryScreenState();
+}
+
+class _PantryScreenState extends State<PantryScreen> {
   static const _unitOptions = <String>[
     'pcs',
     'g',
@@ -21,17 +26,32 @@ class PantryScreen extends StatelessWidget {
     'bottle',
   ];
 
-  static const _storageOptions = <String>[
-    'Pantry',
-    'Fridge',
-    'Freezer',
-    'Counter',
-  ];
+  static const _storageOptions = <String>['Fridge', 'Freezer', 'Shelf'];
+
+  static const _storageAliases = <String, String>{
+    'fridge': 'Fridge',
+    'freezer': 'Freezer',
+    'shelf': 'Shelf',
+    'pantry': 'Shelf',
+    'pantry shelf': 'Shelf',
+    'counter': 'Shelf',
+  };
+
+  String _canonicalStorage(String value) {
+    final normalized = value.trim().toLowerCase();
+    return _storageAliases[normalized] ?? 'Shelf';
+  }
 
   @override
   Widget build(BuildContext context) {
     final state = context.watch<PantryBloc>().state;
     final items = state.items;
+    final grouped = <String, List<PantryItem>>{
+      for (final storage in _storageOptions) storage: <PantryItem>[],
+    };
+    for (final item in items) {
+      grouped[_canonicalStorage(item.storageLocation)]!.add(item);
+    }
 
     return Scaffold(
       appBar: AppBar(title: const Text('Pantry Inventory')),
@@ -81,29 +101,35 @@ class PantryScreen extends StatelessWidget {
                   ? const Center(
                       child: Text('No pantry items yet. Add your first item.'),
                     )
-                  : ListView.builder(
+                  : ListView(
                       padding: const EdgeInsets.only(bottom: 80),
-                      itemCount: items.length,
-                      itemBuilder: (context, index) {
-                        final item = items[index];
-                        return Card(
-                          child: ListTile(
-                            title: Text(item.name),
-                            subtitle: Text(
-                              '${item.quantity} ${item.unit} - ${item.storageLocation}\nExpires: ${item.expiryDate.toLocal().toString().split(' ').first}',
+                      children: _storageOptions
+                          .map(
+                            (storage) => _StorageSection(
+                              title: storage,
+                              items: grouped[storage]!,
+                              onEditItem: (item) =>
+                                  _showPantryEditor(context, existing: item),
+                              onDeleteItem: (item) => context
+                                  .read<PantryBloc>()
+                                  .add(PantryItemDeleted(item.id)),
+                              onDropItem: (item) {
+                                final source = _canonicalStorage(
+                                  item.storageLocation,
+                                );
+                                if (source == storage) {
+                                  return;
+                                }
+                                context.read<PantryBloc>().add(
+                                  PantryItemUpdated(
+                                    item.copyWith(storageLocation: storage),
+                                  ),
+                                );
+                              },
+                              canonicalStorage: _canonicalStorage,
                             ),
-                            isThreeLine: true,
-                            trailing: IconButton(
-                              icon: const Icon(Icons.delete_outline),
-                              onPressed: () => context.read<PantryBloc>().add(
-                                PantryItemDeleted(item.id),
-                              ),
-                            ),
-                            onTap: () =>
-                                _showPantryEditor(context, existing: item),
-                          ),
-                        );
-                      },
+                          )
+                          .toList(growable: false),
                     ),
             ),
           ],
@@ -128,8 +154,11 @@ class PantryScreen extends StatelessWidget {
     String selectedUnit = _unitOptions.contains(existing?.unit)
         ? existing!.unit
         : _unitOptions.first;
-    String selectedStorage = _storageOptions.contains(existing?.storageLocation)
-        ? existing!.storageLocation
+    final existingStorage = existing == null
+        ? null
+        : _canonicalStorage(existing.storageLocation);
+    String selectedStorage = _storageOptions.contains(existingStorage)
+        ? existingStorage!
         : _storageOptions.first;
     DateTime expiryDate =
         existing?.expiryDate ?? DateTime.now().add(const Duration(days: 7));
@@ -265,5 +294,175 @@ class PantryScreen extends StatelessWidget {
     } else {
       context.read<PantryBloc>().add(PantryItemUpdated(item));
     }
+  }
+}
+
+class _StorageSection extends StatelessWidget {
+  const _StorageSection({
+    required this.title,
+    required this.items,
+    required this.onEditItem,
+    required this.onDeleteItem,
+    required this.onDropItem,
+    required this.canonicalStorage,
+  });
+
+  final String title;
+  final List<PantryItem> items;
+  final ValueChanged<PantryItem> onEditItem;
+  final ValueChanged<PantryItem> onDeleteItem;
+  final ValueChanged<PantryItem> onDropItem;
+  final String Function(String value) canonicalStorage;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppPadding.md,
+        AppPadding.sm,
+        AppPadding.md,
+        AppPadding.sm,
+      ),
+      child: DragTarget<PantryItem>(
+        onWillAcceptWithDetails: (details) {
+          return canonicalStorage(details.data.storageLocation) != title;
+        },
+        onAcceptWithDetails: (details) => onDropItem(details.data),
+        builder: (context, candidateData, rejectedData) {
+          final isActive = candidateData.isNotEmpty;
+          return AnimatedContainer(
+            duration: const Duration(milliseconds: 150),
+            padding: const EdgeInsets.all(AppPadding.sm),
+            decoration: BoxDecoration(
+              color: isActive
+                  ? colorScheme.primaryContainer.withAlpha(130)
+                  : colorScheme.surfaceContainerLowest,
+              borderRadius: BorderRadius.circular(AppRadius.md),
+              border: Border.all(
+                color: isActive
+                    ? colorScheme.primary
+                    : colorScheme.outlineVariant,
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    AppPadding.sm,
+                    AppPadding.xs,
+                    AppPadding.sm,
+                    AppPadding.sm,
+                  ),
+                  child: Row(
+                    children: <Widget>[
+                      Icon(Icons.inventory_2_outlined, size: 18),
+                      const SizedBox(width: AppPadding.xs),
+                      Expanded(
+                        child: Text(
+                          '$title (${items.length})',
+                          style: textTheme.titleMedium,
+                        ),
+                      ),
+                      if (isActive)
+                        Text(
+                          'Drop to move',
+                          style: textTheme.labelSmall?.copyWith(
+                            color: colorScheme.primary,
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                if (items.isEmpty)
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(AppPadding.md),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(AppRadius.sm),
+                      color: colorScheme.surface,
+                    ),
+                    child: Text(
+                      'No items here. Drag items into $title.',
+                      style: textTheme.bodySmall?.copyWith(
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  )
+                else
+                  ...items.map(
+                    (item) => Padding(
+                      padding: const EdgeInsets.only(bottom: AppPadding.sm),
+                      child: LongPressDraggable<PantryItem>(
+                        data: item,
+                        feedback: Material(
+                          elevation: 6,
+                          color: Colors.transparent,
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 280),
+                            child: _PantryItemTile(
+                              item: item,
+                              onTap: null,
+                              onDelete: null,
+                            ),
+                          ),
+                        ),
+                        childWhenDragging: Opacity(
+                          opacity: 0.45,
+                          child: _PantryItemTile(
+                            item: item,
+                            onTap: () => onEditItem(item),
+                            onDelete: () => onDeleteItem(item),
+                          ),
+                        ),
+                        child: _PantryItemTile(
+                          item: item,
+                          onTap: () => onEditItem(item),
+                          onDelete: () => onDeleteItem(item),
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _PantryItemTile extends StatelessWidget {
+  const _PantryItemTile({
+    required this.item,
+    required this.onTap,
+    required this.onDelete,
+  });
+
+  final PantryItem item;
+  final VoidCallback? onTap;
+  final VoidCallback? onDelete;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: ListTile(
+        title: Text(item.name),
+        subtitle: Text(
+          '${item.quantity} ${item.unit}\nExpires: ${item.expiryDate.toLocal().toString().split(' ').first}',
+        ),
+        isThreeLine: true,
+        trailing: onDelete == null
+            ? null
+            : IconButton(
+                icon: const Icon(Icons.delete_outline),
+                onPressed: onDelete,
+              ),
+        onTap: onTap,
+      ),
+    );
   }
 }

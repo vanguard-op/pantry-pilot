@@ -6,6 +6,15 @@ import '../models/pantry_item.dart';
 class PantryRepository {
   PantryRepository(this._apiClient);
 
+  static const _storageAliases = <String, String>{
+    'fridge': 'Fridge',
+    'freezer': 'Freezer',
+    'shelf': 'Shelf',
+    'pantry': 'Shelf',
+    'pantry shelf': 'Shelf',
+    'counter': 'Shelf',
+  };
+
   final ApiClient _apiClient;
   final StreamController<List<PantryItem>> _controller =
       StreamController<List<PantryItem>>.broadcast();
@@ -97,7 +106,7 @@ class PantryRepository {
   PantryItem _normalizeItem(PantryItem item) {
     final normalizedName = item.name.trim();
     final normalizedUnit = item.unit.trim();
-    final normalizedStorage = item.storageLocation.trim();
+    final normalizedStorage = _normalizeStorage(item.storageLocation);
     final normalizedQuantity = item.quantity <= 0 ? 0.01 : item.quantity;
     final normalizedThreshold = item.lowStockThreshold < 0
         ? 0.0
@@ -106,10 +115,18 @@ class PantryRepository {
     return item.copyWith(
       name: normalizedName.isEmpty ? 'Unnamed item' : normalizedName,
       unit: normalizedUnit.isEmpty ? 'pcs' : normalizedUnit,
-      storageLocation: normalizedStorage.isEmpty ? 'Pantry' : normalizedStorage,
+      storageLocation: normalizedStorage,
       quantity: normalizedQuantity,
       lowStockThreshold: normalizedThreshold,
     );
+  }
+
+  String _normalizeStorage(String rawValue) {
+    final normalized = rawValue.trim().toLowerCase();
+    if (normalized.isEmpty) {
+      return 'Shelf';
+    }
+    return _storageAliases[normalized] ?? 'Shelf';
   }
 
   Future<void> _ensureLoaded() async {
