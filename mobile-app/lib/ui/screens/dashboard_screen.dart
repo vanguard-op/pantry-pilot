@@ -5,12 +5,14 @@ import 'package:go_router/go_router.dart';
 import '../../blocs/pantry/pantry_bloc.dart';
 import '../../blocs/planner/planner_bloc.dart';
 import '../../blocs/recipes/recipes_bloc.dart';
+import '../../data/models/pantry_item.dart';
 import '../../data/models/recommendations.dart';
 import '../../data/models/recipe.dart';
 import '../../data/repositories/recommendation_repository.dart';
 import '../../navigation/app_router.dart';
 import '../../theme/app_theme.dart';
 import '../widgets/api_status_banner.dart';
+import '../widgets/leftover_card.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -81,6 +83,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 snapshot.data ?? DashboardRecommendations.empty;
             final useSoonIdeas = recommendations.useSoon;
             final leftoverIdeas = recommendations.leftovers;
+
+            // Only ingredients belong in the Use Soon Ingredients section.
+            final useSoonIngredients = pantryState.useSoonItems
+                .where((item) => item.itemKind == PantryItemKind.ingredient)
+                .toList(growable: false);
+
+            // All cooked-meal items, sorted by consume-by date.
+            final leftoverItems =
+                pantryState.items
+                    .where((item) => item.itemKind == PantryItemKind.cookedMeal)
+                    .toList(growable: false)
+                  ..sort((a, b) => a.expiryDate.compareTo(b.expiryDate));
 
             return ListView(
               padding: const EdgeInsets.all(AppPadding.md),
@@ -185,20 +199,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 const SizedBox(height: AppPadding.sm),
                 Card(
                   child: ListTile(
-                    title: const Text('Use soon ingredients'),
+                    title: const Text('Use Soon'),
                     subtitle: Text(
-                      '${pantryState.useSoonItems.length} items expiring in 3 days',
+                      '${pantryState.useSoonItems.length} items are about to expire',
                     ),
                     leading: const Icon(Icons.warning_amber_outlined),
                   ),
                 ),
                 const SizedBox(height: AppPadding.sm),
-                Text('Use Soon Queue', style: textTheme.headlineSmall),
+                Text('Use Soon Ingredients', style: textTheme.headlineSmall),
                 const SizedBox(height: AppPadding.sm),
-                if (pantryState.useSoonItems.isEmpty)
-                  const Text('No urgent items right now.')
+                if (useSoonIngredients.isEmpty)
+                  const Text('No urgent ingredients right now.')
                 else
-                  ...pantryState.useSoonItems.map(
+                  ...useSoonIngredients.map(
                     (item) => Card(
                       child: ListTile(
                         title: Text(item.name),
@@ -206,6 +220,38 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           '${item.quantity} ${item.unit} - ${item.storageLocation}',
                         ),
                         trailing: Text('D-${item.daysUntilExpiry}'),
+                      ),
+                    ),
+                  ),
+                const SizedBox(height: AppPadding.md),
+                Text('Leftovers', style: textTheme.headlineSmall),
+                const SizedBox(height: AppPadding.sm),
+                if (leftoverItems.isEmpty)
+                  const Text('No cooked meal leftovers logged yet.')
+                else
+                  ...leftoverItems.map(
+                    (item) => LeftoverCard(
+                      key: ValueKey(item.id),
+                      item: item,
+                      repurposeIdeas: leftoverIdeas
+                          .where(
+                            (idea) =>
+                                idea.sourceRecipeTitle.toLowerCase().trim() ==
+                                item.name.trim().toLowerCase(),
+                          )
+                          .take(2)
+                          .toList(growable: false),
+                      onMarkUsed: () => context.read<PantryBloc>().add(
+                        PantryItemDeleted(item.id),
+                      ),
+                      onDiscard: () => context.read<PantryBloc>().add(
+                        PantryItemDeleted(item.id),
+                      ),
+                      onRecipeTap: (recipeId) => context.pushNamed(
+                        AppRouter.recipeDetailName,
+                        pathParameters: <String, String>{
+                          AppRouter.recipeIdParam: recipeId,
+                        },
                       ),
                     ),
                   ),
@@ -229,29 +275,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           AppRouter.recipeDetailName,
                           pathParameters: <String, String>{
                             AppRouter.recipeIdParam: item.recipe.id,
-                          },
-                        ),
-                      ),
-                    ),
-                  ),
-                const SizedBox(height: AppPadding.md),
-                Text('Leftover Ideas', style: textTheme.headlineSmall),
-                const SizedBox(height: AppPadding.sm),
-                if (leftoverIdeas.isEmpty)
-                  const Text(
-                    'Plan a few meals to unlock leftover reuse suggestions.',
-                  )
-                else
-                  ...leftoverIdeas.map(
-                    (idea) => Card(
-                      child: ListTile(
-                        title: Text(idea.recipe.title),
-                        subtitle: Text(idea.reason),
-                        trailing: const Icon(Icons.chevron_right),
-                        onTap: () => context.pushNamed(
-                          AppRouter.recipeDetailName,
-                          pathParameters: <String, String>{
-                            AppRouter.recipeIdParam: idea.recipe.id,
                           },
                         ),
                       ),

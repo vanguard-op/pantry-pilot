@@ -10,6 +10,7 @@ import '../../data/models/recommendations.dart';
 import '../../data/repositories/recommendation_repository.dart';
 import '../../navigation/app_router.dart';
 import '../../theme/app_theme.dart';
+import '../widgets/leftover_card.dart';
 
 class WasteSummaryScreen extends StatefulWidget {
   const WasteSummaryScreen({super.key});
@@ -96,7 +97,7 @@ class _WasteSummaryScreenState extends State<WasteSummaryScreen> {
           return ListView(
             padding: const EdgeInsets.all(AppPadding.md),
             children: <Widget>[
-              Text('Use Soon', style: textTheme.titleLarge),
+              Text('Use Soon Ingredients', style: textTheme.titleLarge),
               const SizedBox(height: AppPadding.sm),
               if (useSoonIngredients.isEmpty)
                 Text(
@@ -128,86 +129,32 @@ class _WasteSummaryScreenState extends State<WasteSummaryScreen> {
                   ),
                 )
               else
-                ...leftoverItems.map((item) {
-                  final sourceTitle = item.name.trim();
-                  final itemIdeas = repurposeIdeas
-                      .where(
-                        (idea) =>
-                            idea.sourceRecipeTitle.toLowerCase().trim() ==
-                            sourceTitle.toLowerCase().trim(),
-                      )
-                      .take(2)
-                      .toList(growable: false);
-
-                  return Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(AppPadding.md),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: <Widget>[
-                          Text(sourceTitle, style: textTheme.titleMedium),
-                          const SizedBox(height: AppPadding.xs),
-                          Text(
-                            '${item.quantity.toInt()} serving${item.quantity.toInt() == 1 ? '' : 's'} • Consume by ${item.expiryDate.toLocal().toString().split(' ').first}',
-                            style: textTheme.bodySmall?.copyWith(
-                              color: colorScheme.onSurfaceVariant,
-                            ),
-                          ),
-                          const SizedBox(height: AppPadding.sm),
-                          if (itemIdeas.isEmpty)
-                            Text(
-                              'Repurpose idea: turn leftovers into wraps, bowls, or pasta add-ins.',
-                              style: textTheme.bodySmall,
-                            )
-                          else
-                            ...itemIdeas.map(
-                              (idea) => ListTile(
-                                dense: true,
-                                contentPadding: EdgeInsets.zero,
-                                title: Text(idea.recipe.title),
-                                subtitle: Text(idea.reason),
-                                trailing: const Icon(Icons.chevron_right),
-                                onTap: () => context.pushNamed(
-                                  AppRouter.recipeDetailName,
-                                  pathParameters: <String, String>{
-                                    AppRouter.recipeIdParam: idea.recipe.id,
-                                  },
-                                ),
-                              ),
-                            ),
-                          const SizedBox(height: AppPadding.sm),
-                          Row(
-                            children: <Widget>[
-                              Expanded(
-                                child: OutlinedButton.icon(
-                                  onPressed: () {
-                                    context.read<PantryBloc>().add(
-                                      PantryItemDeleted(item.id),
-                                    );
-                                  },
-                                  icon: const Icon(Icons.check_circle_outline),
-                                  label: const Text('Mark used'),
-                                ),
-                              ),
-                              const SizedBox(width: AppPadding.sm),
-                              Expanded(
-                                child: OutlinedButton.icon(
-                                  onPressed: () {
-                                    context.read<PantryBloc>().add(
-                                      PantryItemDeleted(item.id),
-                                    );
-                                  },
-                                  icon: const Icon(Icons.delete_outline),
-                                  label: const Text('Discard'),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
+                ...leftoverItems.map(
+                  (item) => LeftoverCard(
+                    key: ValueKey(item.id),
+                    item: item,
+                    repurposeIdeas: repurposeIdeas
+                        .where(
+                          (idea) =>
+                              idea.sourceRecipeTitle.toLowerCase().trim() ==
+                              item.name.trim().toLowerCase(),
+                        )
+                        .take(2)
+                        .toList(growable: false),
+                    onMarkUsed: () => context.read<PantryBloc>().add(
+                      PantryItemDeleted(item.id),
                     ),
-                  );
-                }),
+                    onDiscard: () => context.read<PantryBloc>().add(
+                      PantryItemDeleted(item.id),
+                    ),
+                    onRecipeTap: (recipeId) => context.pushNamed(
+                      AppRouter.recipeDetailName,
+                      pathParameters: <String, String>{
+                        AppRouter.recipeIdParam: recipeId,
+                      },
+                    ),
+                  ),
+                ),
               const SizedBox(height: AppPadding.lg),
               Text('Weekly Waste Summary', style: textTheme.titleLarge),
               const SizedBox(height: AppPadding.sm),
