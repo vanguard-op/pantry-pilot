@@ -26,26 +26,27 @@ class _PantryScreenState extends State<PantryScreen> {
     'bottle',
   ];
 
-  static const _storageOptions = <String>['Fridge', 'Freezer', 'Shelf'];
+  static const _storageOptions = <String>['Fridge', 'Freezer', 'Pantry shelf'];
 
   static const _storageAliases = <String, String>{
     'fridge': 'Fridge',
     'freezer': 'Freezer',
-    'shelf': 'Shelf',
-    'pantry': 'Shelf',
-    'pantry shelf': 'Shelf',
-    'counter': 'Shelf',
+    'shelf': 'Pantry shelf',
+    'pantry': 'Pantry shelf',
+    'pantry shelf': 'Pantry shelf',
+    'counter': 'Pantry shelf',
   };
 
   String _canonicalStorage(String value) {
     final normalized = value.trim().toLowerCase();
-    return _storageAliases[normalized] ?? 'Shelf';
+    return _storageAliases[normalized] ?? 'Pantry shelf';
   }
 
   @override
   Widget build(BuildContext context) {
     final state = context.watch<PantryBloc>().state;
     final items = state.items;
+    final useSoonItems = state.useSoonItems;
     final grouped = <String, List<PantryItem>>{
       for (final storage in _storageOptions) storage: <PantryItem>[],
     };
@@ -103,33 +104,39 @@ class _PantryScreenState extends State<PantryScreen> {
                     )
                   : ListView(
                       padding: const EdgeInsets.only(bottom: 80),
-                      children: _storageOptions
-                          .map(
-                            (storage) => _StorageSection(
-                              title: storage,
-                              items: grouped[storage]!,
-                              onEditItem: (item) =>
-                                  _showPantryEditor(context, existing: item),
-                              onDeleteItem: (item) => context
-                                  .read<PantryBloc>()
-                                  .add(PantryItemDeleted(item.id)),
-                              onDropItem: (item) {
-                                final source = _canonicalStorage(
-                                  item.storageLocation,
-                                );
-                                if (source == storage) {
-                                  return;
-                                }
-                                context.read<PantryBloc>().add(
-                                  PantryItemUpdated(
-                                    item.copyWith(storageLocation: storage),
-                                  ),
-                                );
-                              },
-                              canonicalStorage: _canonicalStorage,
-                            ),
-                          )
-                          .toList(growable: false),
+                      children: <Widget>[
+                        if (useSoonItems.isNotEmpty)
+                          _UseSoonSection(
+                            items: useSoonItems,
+                            onTapItem: (item) =>
+                                _showPantryEditor(context, existing: item),
+                          ),
+                        ..._storageOptions.map(
+                          (storage) => _StorageSection(
+                            title: storage,
+                            items: grouped[storage]!,
+                            onEditItem: (item) =>
+                                _showPantryEditor(context, existing: item),
+                            onDeleteItem: (item) => context
+                                .read<PantryBloc>()
+                                .add(PantryItemDeleted(item.id)),
+                            onDropItem: (item) {
+                              final source = _canonicalStorage(
+                                item.storageLocation,
+                              );
+                              if (source == storage) {
+                                return;
+                              }
+                              context.read<PantryBloc>().add(
+                                PantryItemUpdated(
+                                  item.copyWith(storageLocation: storage),
+                                ),
+                              );
+                            },
+                            canonicalStorage: _canonicalStorage,
+                          ),
+                        ),
+                      ],
                     ),
             ),
           ],
@@ -294,6 +301,74 @@ class _PantryScreenState extends State<PantryScreen> {
     } else {
       context.read<PantryBloc>().add(PantryItemUpdated(item));
     }
+  }
+}
+
+class _UseSoonSection extends StatelessWidget {
+  const _UseSoonSection({required this.items, required this.onTapItem});
+
+  final List<PantryItem> items;
+  final ValueChanged<PantryItem> onTapItem;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppPadding.md,
+        AppPadding.md,
+        AppPadding.md,
+        AppPadding.sm,
+      ),
+      child: Card(
+        margin: EdgeInsets.zero,
+        child: Padding(
+          padding: const EdgeInsets.all(AppPadding.md),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Row(
+                children: <Widget>[
+                  Icon(
+                    Icons.warning_amber_rounded,
+                    color: colorScheme.tertiary,
+                  ),
+                  const SizedBox(width: AppPadding.xs),
+                  Text('Use Soon', style: textTheme.titleMedium),
+                ],
+              ),
+              const SizedBox(height: AppPadding.xs),
+              Text(
+                'Items expiring in 3 days or less. Tap to edit quantity or expiry.',
+                style: textTheme.bodySmall?.copyWith(
+                  color: colorScheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: AppPadding.sm),
+              Wrap(
+                spacing: AppPadding.sm,
+                runSpacing: AppPadding.sm,
+                children: items
+                    .map(
+                      (item) => ActionChip(
+                        avatar: Icon(
+                          Icons.schedule,
+                          size: 16,
+                          color: colorScheme.tertiary,
+                        ),
+                        label: Text('${item.name} (${item.daysUntilExpiry}d)'),
+                        onPressed: () => onTapItem(item),
+                      ),
+                    )
+                    .toList(growable: false),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
 

@@ -9,10 +9,10 @@ class PantryRepository {
   static const _storageAliases = <String, String>{
     'fridge': 'Fridge',
     'freezer': 'Freezer',
-    'shelf': 'Shelf',
-    'pantry': 'Shelf',
-    'pantry shelf': 'Shelf',
-    'counter': 'Shelf',
+    'shelf': 'Pantry shelf',
+    'pantry': 'Pantry shelf',
+    'pantry shelf': 'Pantry shelf',
+    'counter': 'Pantry shelf',
   };
 
   final ApiClient _apiClient;
@@ -124,9 +124,9 @@ class PantryRepository {
   String _normalizeStorage(String rawValue) {
     final normalized = rawValue.trim().toLowerCase();
     if (normalized.isEmpty) {
-      return 'Shelf';
+      return 'Pantry shelf';
     }
-    return _storageAliases[normalized] ?? 'Shelf';
+    return _storageAliases[normalized] ?? 'Pantry shelf';
   }
 
   Future<void> _ensureLoaded() async {

@@ -29,7 +29,7 @@ class PantryItem {
       name: map['name'] as String? ?? 'Unnamed item',
       quantity: (map['quantity'] as num?)?.toDouble() ?? 1,
       unit: map['unit'] as String? ?? 'pcs',
-      storageLocation: map['storage_location'] as String? ?? 'Shelf',
+      storageLocation: map['storage_location'] as String? ?? 'Pantry shelf',
       expiryDate:
           DateTime.tryParse(map['expiry_date'] as String? ?? '') ??
           DateTime.now().add(const Duration(days: 30)),
