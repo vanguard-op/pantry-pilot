@@ -20,13 +20,11 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    difficulty_enum = sa.Enum("Beginner", "Intermediate", "Confident", name="difficulty")
+    # SQLAlchemy persists Enum member names by default (beginner/intermediate/confident).
+    # Keep migration enum values aligned so inserts from ORM models succeed.
+    difficulty_enum = sa.Enum("beginner", "intermediate", "confident", name="difficulty")
     feedback_category_enum = sa.Enum("bug", "suggestion", "other", name="feedbackcategory")
     feedback_status_enum = sa.Enum("open", "in_review", "resolved", name="feedbackstatus")
-
-    difficulty_enum.create(op.get_bind(), checkfirst=True)
-    feedback_category_enum.create(op.get_bind(), checkfirst=True)
-    feedback_status_enum.create(op.get_bind(), checkfirst=True)
 
     op.create_table(
         "pantryitem",
@@ -55,14 +53,43 @@ def upgrade() -> None:
         sa.Column("tags", sa.JSON(), nullable=True),
         sa.Column("ingredients", sa.JSON(), nullable=True),
         sa.Column("steps", sa.JSON(), nullable=True),
-        sa.Column("is_favorite", sa.Boolean(), nullable=False),
+        sa.Column(
+            "ownership_scope",
+            sa.String(length=16),
+            nullable=False,
+            server_default="custom",
+        ),
         sa.Column("id", sa.String(), nullable=False),
-        sa.Column("user_id", sa.String(), nullable=False),
+        sa.Column("user_id", sa.String(), nullable=True),
         sa.Column("created_at", sa.DateTime(), nullable=False),
         sa.Column("updated_at", sa.DateTime(), nullable=False),
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_index(op.f("ix_recipe_user_id"), "recipe", ["user_id"], unique=False)
+
+    op.create_table(
+        "recipeaccountmetadata",
+        sa.Column("user_id", sa.String(), nullable=False),
+        sa.Column("recipe_id", sa.String(), nullable=False),
+        sa.Column("is_favorite", sa.Boolean(), nullable=False, server_default=sa.false()),
+        sa.Column("rating", sa.Integer(), nullable=True),
+        sa.Column("last_cooked_at", sa.DateTime(), nullable=True),
+        sa.Column("usage_count", sa.Integer(), nullable=False, server_default="0"),
+        sa.Column("updated_at", sa.DateTime(), nullable=False),
+        sa.CheckConstraint(
+            "rating IS NULL OR (rating >= 1 AND rating <= 5)",
+            name="ck_recipe_metadata_rating",
+        ),
+        sa.CheckConstraint("usage_count >= 0", name="ck_recipe_metadata_usage_count"),
+        sa.ForeignKeyConstraint(["recipe_id"], ["recipe.id"], ondelete="CASCADE"),
+        sa.PrimaryKeyConstraint("user_id", "recipe_id"),
+    )
+    op.create_index(
+        op.f("ix_recipeaccountmetadata_recipe_id"),
+        "recipeaccountmetadata",
+        ["recipe_id"],
+        unique=False,
+    )
 
     op.create_table(
         "plannedmeal",
@@ -83,6 +110,9 @@ def upgrade() -> None:
         sa.Column("household_size", sa.Integer(), nullable=False),
         sa.Column("skill_level", difficulty_enum, nullable=False),
         sa.Column("dietary_notes", sa.String(), nullable=False),
+        sa.Column("onboarding_complete", sa.Boolean(), nullable=False, server_default=sa.false()),
+        sa.Column("first_plan_created_at", sa.DateTime(), nullable=True),
+        sa.Column("cooking_session_dates", sa.JSON(), nullable=False),
         sa.Column("expiry_threshold_days", sa.Integer(), nullable=False),
         sa.Column("expiry_notifications_enabled", sa.Boolean(), nullable=False),
         sa.Column("meal_reminder_notifications_enabled", sa.Boolean(), nullable=False),
@@ -114,16 +144,11 @@ def downgrade() -> None:
     op.drop_index(op.f("ix_plannedmeal_user_id"), table_name="plannedmeal")
     op.drop_table("plannedmeal")
 
+    op.drop_index(op.f("ix_recipeaccountmetadata_recipe_id"), table_name="recipeaccountmetadata")
+    op.drop_table("recipeaccountmetadata")
+
     op.drop_index(op.f("ix_recipe_user_id"), table_name="recipe")
     op.drop_table("recipe")
 
     op.drop_index(op.f("ix_pantryitem_user_id"), table_name="pantryitem")
     op.drop_table("pantryitem")
-
-    feedback_status_enum = sa.Enum("open", "in_review", "resolved", name="feedbackstatus")
-    feedback_category_enum = sa.Enum("bug", "suggestion", "other", name="feedbackcategory")
-    difficulty_enum = sa.Enum("Beginner", "Intermediate", "Confident", name="difficulty")
-
-    feedback_status_enum.drop(op.get_bind(), checkfirst=True)
-    feedback_category_enum.drop(op.get_bind(), checkfirst=True)
-    difficulty_enum.drop(op.get_bind(), checkfirst=True)

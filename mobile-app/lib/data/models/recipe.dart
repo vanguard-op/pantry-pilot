@@ -1,6 +1,17 @@
 import 'recipe_step.dart';
 
-enum RecipeOwnershipScope { global, custom }
+/// Ownership tier for a recipe, mirroring the backend ``RecipeOwnershipScope``
+/// enum.  Controls which badge is displayed on recipe cards.
+enum RecipeOwnershipScope {
+  /// Curated free-tier recipes available to every user.
+  starter,
+
+  /// Curated Plus-only catalog recipes.
+  plus,
+
+  /// User-created recipes owned by the current Plus account.
+  custom,
+}
 
 class Recipe {
   Recipe({
@@ -85,9 +96,19 @@ class Recipe {
 
   int get totalMinutes => prepMinutes + cookMinutes;
 
-  bool get isGlobal => ownershipScope == RecipeOwnershipScope.global;
+  bool get isStarter => ownershipScope == RecipeOwnershipScope.starter;
 
-  String get ownershipLabel => isGlobal ? 'Global' : 'Owned';
+  /// Display label shown in the ownership badge on recipe cards and detail view.
+  String get ownershipLabel {
+    switch (ownershipScope) {
+      case RecipeOwnershipScope.starter:
+        return 'Starter';
+      case RecipeOwnershipScope.plus:
+        return 'Plus';
+      case RecipeOwnershipScope.custom:
+        return 'Custom';
+    }
+  }
 
   Recipe copyWith({bool? isFavorite, RecipeOwnershipScope? ownershipScope}) {
     return Recipe(
@@ -108,12 +129,14 @@ class Recipe {
 
   static RecipeOwnershipScope _ownershipScopeFromApi(String? value) {
     switch (value) {
-      case 'global':
-        return RecipeOwnershipScope.global;
+      case 'starter':
+        return RecipeOwnershipScope.starter;
+      case 'plus':
+        return RecipeOwnershipScope.plus;
       case 'custom':
         return RecipeOwnershipScope.custom;
       default:
-        return RecipeOwnershipScope.custom;
+        return RecipeOwnershipScope.starter;
     }
   }
 }

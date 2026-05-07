@@ -30,7 +30,8 @@ class ShoppingService:
         )
         pantry_statement = select(PantryItem).where(PantryItem.user_id == self._user_id)
         recipe_statement = select(Recipe).where(
-            (Recipe.ownership_scope == RecipeOwnershipScope.global_catalog)
+            (Recipe.ownership_scope == RecipeOwnershipScope.starter_catalog)
+            | (Recipe.ownership_scope == RecipeOwnershipScope.plus_catalog)
             | (
                 (Recipe.ownership_scope == RecipeOwnershipScope.custom_account)
                 & (Recipe.user_id == self._user_id)

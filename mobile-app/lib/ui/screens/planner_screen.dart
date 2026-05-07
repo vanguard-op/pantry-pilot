@@ -243,7 +243,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
                                           onPressed: recipe == null
                                               ? null
                                               : () => context.pushNamed(
-                                                  AppRouter.recipeCookName,
+                                                  AppRouter.recipeDetailName,
                                                   pathParameters:
                                                       <String, String>{
                                                         AppRouter.recipeIdParam:

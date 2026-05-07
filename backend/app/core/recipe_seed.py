@@ -7,18 +7,46 @@ from sqlmodel import Session, select
 from app.models import Difficulty, Recipe, RecipeOwnershipScope
 
 
-def seed_recipes_if_empty(session: Session, *, seed_user_id: str) -> None:
+def seed_recipes_if_empty(session: Session) -> None:
     existing_recipe_id = session.exec(select(Recipe.id).limit(1)).first()
     if existing_recipe_id is not None:
         return
 
-    recipes = _generate_starter_recipes(seed_user_id)
+    recipes = [
+        *_generate_curated_recipes(
+            ownership_scope=RecipeOwnershipScope.starter_catalog,
+            limit=50,
+            title_suffix="",
+            description=(
+                "A practical weekday meal focused on pantry-friendly ingredients "
+                "and easy prep."
+            ),
+            extra_tags=("Starter",),
+        ),
+        *_generate_curated_recipes(
+            ownership_scope=RecipeOwnershipScope.plus_catalog,
+            limit=24,
+            title_suffix=" Plus",
+            description=(
+                "A premium curated recipe with broader ingredient variety and a "
+                "slightly more ambitious cooking flow."
+            ),
+            extra_tags=("Plus", "Premium"),
+        ),
+    ]
     for recipe in recipes:
         session.add(recipe)
     session.commit()
 
 
-def _generate_starter_recipes(_seed_user_id: str) -> Sequence[Recipe]:
+def _generate_curated_recipes(
+    *,
+    ownership_scope: RecipeOwnershipScope,
+    limit: int,
+    title_suffix: str,
+    description: str,
+    extra_tags: tuple[str, ...],
+) -> Sequence[Recipe]:
     proteins = ["Chicken", "Tofu", "Beans", "Egg", "Tuna"]
     carbs = ["Rice", "Pasta", "Potato", "Quinoa", "Wrap"]
     vegetables = ["Broccoli", "Carrot", "Bell Pepper", "Spinach", "Zucchini"]
@@ -29,7 +57,7 @@ def _generate_starter_recipes(_seed_user_id: str) -> Sequence[Recipe]:
     for protein in proteins:
         for carb in carbs:
             for vegetable in vegetables:
-                if len(recipes) >= 50:
+                if len(recipes) >= limit:
                     return recipes
 
                 if index % 3 == 0:
@@ -41,7 +69,7 @@ def _generate_starter_recipes(_seed_user_id: str) -> Sequence[Recipe]:
 
                 prep = 8 + (index % 4) * 3
                 cook = 15 + (index % 5) * 4
-                title = f"{protein} {carb} with {vegetable}"
+                title = f"{protein} {carb} with {vegetable}{title_suffix}"
                 ingredients = [
                     protein.lower(),
                     carb.lower(),
@@ -74,7 +102,7 @@ def _generate_starter_recipes(_seed_user_id: str) -> Sequence[Recipe]:
                     },
                 ]
 
-                tags = ["Weeknight"]
+                tags = ["Weeknight", *extra_tags]
                 if cook <= 25:
                     tags.append("Quick")
                 if difficulty == Difficulty.beginner:
@@ -84,11 +112,11 @@ def _generate_starter_recipes(_seed_user_id: str) -> Sequence[Recipe]:
 
                 recipes.append(
                     Recipe(
-                        # Starter recipes are platform-owned and shared across accounts.
+                        # Curated catalog recipes are platform-owned and shared across accounts.
                         user_id=None,
-                        ownership_scope=RecipeOwnershipScope.global_catalog,
+                        ownership_scope=ownership_scope,
                         title=title,
-                        description="A practical weekday meal focused on pantry-friendly ingredients and easy prep.",
+                        description=description,
                         prep_minutes=prep,
                         cook_minutes=cook,
                         servings=4,
@@ -96,7 +124,6 @@ def _generate_starter_recipes(_seed_user_id: str) -> Sequence[Recipe]:
                         tags=tags,
                         ingredients=ingredients,
                         steps=steps,
-                        is_favorite=False,
                     )
                 )
 

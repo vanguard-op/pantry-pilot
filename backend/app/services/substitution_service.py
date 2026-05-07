@@ -1,7 +1,7 @@
 from sqlmodel import select
 
 from app.api.deps import SessionDep, UserIdDep
-from app.models import PantryItem, SubstitutionHint, SubstitutionHintsResponse
+from app.models import PantryItem, PantrySubstituteOption, SubstitutionHint, SubstitutionHintsResponse
 
 _SUBSTITUTION_KB: dict[str, str] = {
     "olive oil": "use butter or neutral cooking oil",
@@ -50,7 +50,8 @@ class SubstitutionService:
         pantry_items = list(
             self._session.exec(select(PantryItem).where(PantryItem.user_id == self._user_id)).all()
         )
-        pantry_names = {item.name.lower() for item in pantry_items}
+        # Map normalised pantry name → original display name for matching.
+        pantry_name_map: dict[str, str] = {item.name.lower(): item.name for item in pantry_items}
 
         hints: list[SubstitutionHint] = []
         for ingredient in expanded:
@@ -59,9 +60,20 @@ class SubstitutionService:
                 normalised,
                 "swap with a similar pantry item and adjust cook time",
             )
-            pantry_hint = self._pantry_suggestion(normalised, default_hint, pantry_names)
-            hint_text = pantry_hint if pantry_hint else f"{ingredient}: {default_hint}"
-            hints.append(SubstitutionHint(ingredient=ingredient, hint=hint_text))
+            pantry_subs = self._find_pantry_substitutes(normalised, pantry_name_map)
+            # Build a human-readable hint that surfaces the best pantry match when available.
+            if pantry_subs:
+                first = pantry_subs[0].pantry_item_name
+                hint_text = f"{ingredient}: you have {first} in your pantry — {default_hint}"
+            else:
+                hint_text = f"{ingredient}: {default_hint}"
+            hints.append(
+                SubstitutionHint(
+                    ingredient=ingredient,
+                    hint=hint_text,
+                    pantry_substitutes=pantry_subs,
+                )
+            )
 
         return SubstitutionHintsResponse(hints=hints)
 
@@ -71,21 +83,34 @@ class SubstitutionService:
             expanded.extend(part.strip() for part in item.split(",") if part.strip())
         return expanded
 
-    def _pantry_suggestion(
+    def _find_pantry_substitutes(
         self,
         ingredient: str,
-        default_hint: str,
-        pantry_names: set[str],
-    ) -> str | None:
+        pantry_name_map: dict[str, str],
+    ) -> list[PantrySubstituteOption]:
+        """Return pantry items that are known substitutes for `ingredient`.
+
+        Looks up the ingredient in the knowledge base, tokenises the suggestion
+        text, and matches each token against the user's pantry by substring
+        containment. Each match becomes a `PantrySubstituteOption` so the
+        mobile client can present concrete pantry-sourced swap choices.
+        """
         kb_entry = _SUBSTITUTION_KB.get(ingredient)
         if kb_entry is None:
-            return None
+            return []
 
-        substitutes = [token.strip().rstrip(",") for token in kb_entry.split()]
-        for substitute in substitutes:
-            if len(substitute) < 3:
+        tokens = [t.strip().rstrip(",") for t in kb_entry.split()]
+        found: list[PantrySubstituteOption] = []
+        seen: set[str] = set()
+        for token in tokens:
+            if len(token) < 3:
                 continue
-            for pantry_name in pantry_names:
-                if substitute in pantry_name or pantry_name in substitute:
-                    return f"{ingredient}: you have {pantry_name} — {default_hint}"
-        return None
+            for norm_name, orig_name in pantry_name_map.items():
+                if norm_name in seen:
+                    continue
+                if token in norm_name or norm_name in token:
+                    found.append(
+                        PantrySubstituteOption(pantry_item_name=orig_name, reason=kb_entry)
+                    )
+                    seen.add(norm_name)
+        return found

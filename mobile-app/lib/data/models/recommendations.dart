@@ -143,17 +143,55 @@ class DashboardRecommendations {
   );
 }
 
+/// A pantry item that can serve as a substitute for a missing ingredient.
+class PantrySubstituteOption {
+  const PantrySubstituteOption({
+    required this.pantryItemName,
+    required this.reason,
+  });
+
+  /// The display name of the pantry item that can be used as a substitute.
+  final String pantryItemName;
+
+  /// Human-readable explanation of why this item is a suitable substitute.
+  final String reason;
+
+  factory PantrySubstituteOption.fromMap(Map<String, dynamic> map) {
+    return PantrySubstituteOption(
+      pantryItemName: map['pantry_item_name'] as String? ?? '',
+      reason: map['reason'] as String? ?? '',
+    );
+  }
+}
+
 /// A single ingredient substitution hint, optionally pantry-aware.
 class SubstitutionHint {
-  const SubstitutionHint({required this.ingredient, required this.hint});
+  const SubstitutionHint({
+    required this.ingredient,
+    required this.hint,
+    this.pantrySubstitutes = const <PantrySubstituteOption>[],
+  });
 
   final String ingredient;
   final String hint;
+
+  /// Pantry items already in stock that are known substitutes for [ingredient].
+  /// Empty when the user's pantry has no matching alternatives.
+  final List<PantrySubstituteOption> pantrySubstitutes;
 
   factory SubstitutionHint.fromMap(Map<String, dynamic> map) {
     return SubstitutionHint(
       ingredient: map['ingredient'] as String? ?? '',
       hint: map['hint'] as String? ?? '',
+      pantrySubstitutes:
+          (map['pantry_substitutes'] as List<dynamic>? ?? const <dynamic>[])
+              .whereType<Map>()
+              .map(
+                (item) => PantrySubstituteOption.fromMap(
+                  item.cast<String, dynamic>(),
+                ),
+              )
+              .toList(growable: false),
     );
   }
 }

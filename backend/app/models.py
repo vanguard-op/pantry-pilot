@@ -57,7 +57,8 @@ class PantryItemUpdate(SQLModel):
 
 
 class RecipeOwnershipScope(str, Enum):
-    global_catalog = "global"
+    starter_catalog = "starter"
+    plus_catalog = "plus"
     custom_account = "custom"
 
 
@@ -251,9 +252,17 @@ class KpiSummary(SQLModel):
     pantry_use_soon_ratio: float
 
 
+class PantrySubstituteOption(SQLModel):
+    """A pantry item that can serve as a substitute for a missing ingredient."""
+
+    pantry_item_name: str
+    reason: str
+
+
 class SubstitutionHint(SQLModel):
     ingredient: str
     hint: str
+    pantry_substitutes: List["PantrySubstituteOption"] = []
 
 
 class SubstitutionHintsResponse(SQLModel):

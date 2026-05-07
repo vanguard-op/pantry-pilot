@@ -162,7 +162,8 @@ class RecipesService:
 
     def _list_accessible_recipes(self) -> list[Recipe]:
         statement = select(Recipe).where(
-            (Recipe.ownership_scope == RecipeOwnershipScope.global_catalog)
+            (Recipe.ownership_scope == RecipeOwnershipScope.starter_catalog)
+            | (Recipe.ownership_scope == RecipeOwnershipScope.plus_catalog)
             | (
                 (Recipe.ownership_scope == RecipeOwnershipScope.custom_account)
                 & (Recipe.user_id == self._user_id)
@@ -175,12 +176,15 @@ class RecipesService:
         if not recipe:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Recipe not found")
 
-        is_global = recipe.ownership_scope == RecipeOwnershipScope.global_catalog
+        is_catalog = recipe.ownership_scope in {
+            RecipeOwnershipScope.starter_catalog,
+            RecipeOwnershipScope.plus_catalog,
+        }
         is_owned_custom = (
             recipe.ownership_scope == RecipeOwnershipScope.custom_account
             and recipe.user_id == self._user_id
         )
-        if not (is_global or is_owned_custom):
+        if not (is_catalog or is_owned_custom):
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Recipe not found")
         return recipe
 

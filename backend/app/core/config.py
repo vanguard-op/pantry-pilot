@@ -1,5 +1,5 @@
 from functools import lru_cache
-from typing import List
+from typing import Any, List
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -14,11 +14,13 @@ class Settings(BaseSettings):
         alias="DATABASE_URL",
     )
     allowed_origins: str = Field(default="*", alias="ALLOWED_ORIGINS")
-    recipe_seed_user_id: str = Field(default="mobile-user-1", alias="RECIPE_SEED_USER_ID")
 
     # Cognito — left empty by default so local dev can use the X-User-Id fallback.
     cognito_region: str = Field(default="", alias="COGNITO_REGION")
     cognito_user_pool_id: str = Field(default="", alias="COGNITO_USER_POOL_ID")
+    cognito_client_id: str = Field(default="", alias="COGNITO_CLIENT_ID")
+    cognito_hosted_ui_domain_prefix: str = Field(default="", alias="COGNITO_HOSTED_UI_DOMAIN_PREFIX")
+    cognito_hosted_ui_domain: str = Field(default="", alias="COGNITO_HOSTED_UI_DOMAIN")
 
     @property
     def allowed_origins_list(self) -> List[str]:
@@ -36,6 +38,43 @@ class Settings(BaseSettings):
     @property
     def cognito_jwks_url(self) -> str:
         return f"{self.cognito_issuer}/.well-known/jwks.json"
+
+    @property
+    def cognito_oauth_domain(self) -> str:
+        if self.cognito_hosted_ui_domain:
+            return self.cognito_hosted_ui_domain.strip().rstrip("/")
+
+        if not self.cognito_hosted_ui_domain_prefix:
+            return ""
+
+        prefix = self.cognito_hosted_ui_domain_prefix.strip()
+        return f"https://{prefix}.auth.{self.cognito_region}.amazoncognito.com"
+
+    @property
+    def cognito_docs_oauth_enabled(self) -> bool:
+        """True when Swagger UI can perform Cognito OAuth2 login."""
+        return bool(self.cognito_enabled and self.cognito_client_id and self.cognito_oauth_domain)
+
+    @property
+    def cognito_oauth_authorize_url(self) -> str:
+        return f"{self.cognito_oauth_domain}/oauth2/authorize"
+
+    @property
+    def cognito_oauth_token_url(self) -> str:
+        return f"{self.cognito_oauth_domain}/oauth2/token"
+
+    @property
+    def swagger_ui_init_oauth(self) -> dict[str, Any]:
+        if not self.cognito_docs_oauth_enabled:
+            return {}
+
+        # Swagger UI requests tokens directly from Cognito using PKCE.
+        return {
+            "clientId": self.cognito_client_id,
+            "appName": "PantryPilot API Docs",
+            "usePkceWithAuthorizationCodeGrant": True,
+            "scopes": "openid email profile",
+        }
 
 
 @lru_cache(maxsize=1)

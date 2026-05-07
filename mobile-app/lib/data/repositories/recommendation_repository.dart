@@ -22,12 +22,14 @@ class RecommendationRepository {
 
   /// Fetches pantry-aware substitution hints for a list of ingredient names.
   ///
-  /// Returns a map of [ingredient] → [hint string] for convenient look-up in UI.
-  Future<Map<String, String>> fetchSubstitutionHints(
+  /// Returns a map of [ingredient] → [SubstitutionHint] for convenient UI
+  /// look-up. Each hint includes a text description and any pantry items that
+  /// are known substitutes and are currently in the user's pantry.
+  Future<Map<String, SubstitutionHint>> fetchSubstitutionHints(
     List<String> ingredients,
   ) async {
     if (ingredients.isEmpty) {
-      return const <String, String>{};
+      return const <String, SubstitutionHint>{};
     }
 
     final response = await _apiClient.getObject(
@@ -40,8 +42,8 @@ class RecommendationRepository {
         .map((item) => SubstitutionHint.fromMap(item.cast<String, dynamic>()))
         .toList(growable: false);
 
-    return <String, String>{
-      for (final hint in hintsList) hint.ingredient: hint.hint,
+    return <String, SubstitutionHint>{
+      for (final hint in hintsList) hint.ingredient: hint,
     };
   }
 

@@ -165,6 +165,7 @@ class AppRouter {
                     path: AppRouter._recipeDetailSegment,
                     builder: (context, state) => RecipeDetailScreen(
                       recipeId: state.pathParameters[AppRouter.recipeIdParam]!,
+                      plannedMealId: state.uri.queryParameters['plannedMealId'],
                     ),
                     routes: <RouteBase>[
                       GoRoute(

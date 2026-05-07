@@ -59,7 +59,8 @@ class RecommendationService:
 
     def _list_recipes(self) -> list[RecipePublic]:
         statement = select(Recipe).where(
-            (Recipe.ownership_scope == RecipeOwnershipScope.global_catalog)
+            (Recipe.ownership_scope == RecipeOwnershipScope.starter_catalog)
+            | (Recipe.ownership_scope == RecipeOwnershipScope.plus_catalog)
             | (
                 (Recipe.ownership_scope == RecipeOwnershipScope.custom_account)
                 & (Recipe.user_id == self._user_id)

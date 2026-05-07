@@ -158,13 +158,30 @@ class _RecipeOwnershipBadge extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
 
-    final icon = recipe.isGlobal ? Icons.public : Icons.person_outline;
-    final foreground = recipe.isGlobal
-        ? colorScheme.primary
-        : colorScheme.secondary;
-    final background = recipe.isGlobal
-        ? colorScheme.primaryContainer.withAlpha(110)
-        : colorScheme.secondaryContainer.withAlpha(120);
+    final (
+      IconData icon,
+      Color foreground,
+      Color background,
+    ) = switch (recipe.ownershipScope) {
+      // Starter: free curated catalog.
+      RecipeOwnershipScope.starter => (
+        Icons.menu_book_outlined,
+        colorScheme.primary,
+        colorScheme.primaryContainer.withAlpha(110),
+      ),
+      // Plus: premium curated catalog.
+      RecipeOwnershipScope.plus => (
+        Icons.workspace_premium_outlined,
+        const Color(0xFFB45309), // amber-700 for good contrast on light bg
+        const Color(0xFFFEF3C7).withAlpha(200), // amber-50
+      ),
+      // Custom: account-owned recipe.
+      RecipeOwnershipScope.custom => (
+        Icons.edit_note_outlined,
+        colorScheme.secondary,
+        colorScheme.secondaryContainer.withAlpha(120),
+      ),
+    };
 
     return Container(
       padding: const EdgeInsets.symmetric(

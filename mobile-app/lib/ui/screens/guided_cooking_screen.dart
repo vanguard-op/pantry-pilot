@@ -8,12 +8,9 @@ import '../../blocs/planner/planner_bloc.dart';
 import '../../blocs/recipes/recipes_bloc.dart';
 import '../../data/models/pantry_item.dart';
 import '../../data/models/recipe.dart';
-import '../../data/repositories/recommendation_repository.dart';
-import '../../navigation/app_router.dart';
 import '../../data/repositories/settings_repository.dart';
+import '../../navigation/app_router.dart';
 import '../../theme/app_theme.dart';
-import '../widgets/api_status_banner.dart';
-import '../widgets/substitution_hint_skeleton.dart';
 
 class GuidedCookingScreen extends StatefulWidget {
   const GuidedCookingScreen({
@@ -32,15 +29,10 @@ class GuidedCookingScreen extends StatefulWidget {
 class _GuidedCookingScreenState extends State<GuidedCookingScreen> {
   late final CookingBloc _cookingBloc;
   bool _sessionLogged = false;
-  bool _checklistConfirmed = false;
   bool _pantryUpdateEnabled = true;
   bool _favoriteSelected = false;
   int _selectedRating = 0;
   final Map<String, double> _deductionAmounts = <String, double>{};
-  final Set<String> _acceptedSubstitutions = <String>{};
-  Map<String, String> _substitutionHints = const <String, String>{};
-  bool _substitutionsLoading = false;
-  bool _substitutionsError = false;
 
   @override
   void initState() {
@@ -52,30 +44,9 @@ class _GuidedCookingScreenState extends State<GuidedCookingScreen> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _pantryUpdateEnabled = context.read<SettingsRepository>().pantryAutoDeductEnabled;
-    // Fetch hints once; ingredients don't change during a session.
-    if (_substitutionHints.isEmpty && widget.recipe.ingredients.isNotEmpty) {
-      _substitutionsLoading = true;
-      context
-          .read<RecommendationRepository>()
-          .fetchSubstitutionHints(widget.recipe.ingredients)
-          .then((hints) {
-        if (mounted) {
-          setState(() {
-            _substitutionHints = hints;
-            _substitutionsLoading = false;
-            _substitutionsError = false;
-          });
-        }
-      }).catchError((_) {
-        if (mounted) {
-          setState(() {
-            _substitutionsLoading = false;
-            _substitutionsError = true;
-          });
-        }
-      });
-    }
+    _pantryUpdateEnabled = context
+        .read<SettingsRepository>()
+        .pantryAutoDeductEnabled;
   }
 
   @override
@@ -137,59 +108,6 @@ class _GuidedCookingScreenState extends State<GuidedCookingScreen> {
               );
             }
 
-            final pantryItems = context.watch<PantryBloc>().state.items;
-            if (!_checklistConfirmed) {
-              return _PreCookChecklistView(
-                recipe: currentRecipe,
-                pantryItems: pantryItems,
-                acceptedSubstitutions: _acceptedSubstitutions,
-                substitutionHints: _substitutionHints,
-                substitutionsLoading: _substitutionsLoading,
-                substitutionsError: _substitutionsError,
-                onRetrySubstitutions: () {
-                  setState(() {
-                    _substitutionHints = const <String, String>{};
-                    _substitutionsLoading = true;
-                    _substitutionsError = false;
-                  });
-                  // Re-trigger didChangeDependencies won't work here;
-                  // call the fetch directly.
-                  context
-                      .read<RecommendationRepository>()
-                      .fetchSubstitutionHints(currentRecipe.ingredients)
-                      .then((hints) {
-                    if (mounted) {
-                      setState(() {
-                        _substitutionHints = hints;
-                        _substitutionsLoading = false;
-                        _substitutionsError = false;
-                      });
-                    }
-                  }).catchError((_) {
-                    if (mounted) {
-                      setState(() {
-                        _substitutionsLoading = false;
-                        _substitutionsError = true;
-                      });
-                    }
-                  });
-                },
-                onSubstitutionToggled: (ingredient) {
-                  setState(() {
-                    if (_acceptedSubstitutions.contains(ingredient)) {
-                      _acceptedSubstitutions.remove(ingredient);
-                    } else {
-                      _acceptedSubstitutions.add(ingredient);
-                    }
-                  });
-                },
-                onCancel: () => Navigator.of(context).maybePop(),
-                onStartCooking: () {
-                  setState(() => _checklistConfirmed = true);
-                },
-              );
-            }
-
             final textTheme = Theme.of(context).textTheme;
             final step = currentRecipe.steps[state.currentStepIndex];
 
@@ -204,10 +122,7 @@ class _GuidedCookingScreenState extends State<GuidedCookingScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: <Widget>[
-                    Text(
-                      step.description,
-                      style: textTheme.headlineMedium,
-                    ),
+                    Text(step.description, style: textTheme.headlineMedium),
                     const SizedBox(height: AppPadding.sm),
                     Wrap(
                       spacing: AppPadding.sm,
@@ -225,10 +140,7 @@ class _GuidedCookingScreenState extends State<GuidedCookingScreen> {
                           children: <Widget>[
                             Text('Step timer', style: textTheme.titleMedium),
                             const SizedBox(height: AppPadding.sm),
-                            Text(
-                              state.mmss,
-                              style: textTheme.displayMedium,
-                            ),
+                            Text(state.mmss, style: textTheme.displayMedium),
                             const SizedBox(height: AppPadding.sm),
                             Row(
                               mainAxisAlignment: MainAxisAlignment.center,
@@ -300,7 +212,9 @@ class _GuidedCookingScreenState extends State<GuidedCookingScreen> {
       _applyPantryDeductions(context, recipe);
     }
     if (widget.plannedMealId != null && widget.plannedMealId!.isNotEmpty) {
-      context.read<PlannerBloc>().add(PlannedMealDeleted(widget.plannedMealId!));
+      context.read<PlannerBloc>().add(
+        PlannedMealDeleted(widget.plannedMealId!),
+      );
     }
 
     if (!mounted) {
@@ -310,16 +224,17 @@ class _GuidedCookingScreenState extends State<GuidedCookingScreen> {
     final message = _selectedRating > 0
         ? 'Saved your $_selectedRating-star cook for ${recipe.title}.'
         : 'Finished ${recipe.title}.';
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
     context.goNamed(AppRouter.homeName);
   }
 
   void _applyPantryDeductions(BuildContext context, Recipe recipe) {
     final pantryItems = context.read<PantryBloc>().state.items;
     for (final item in _matchingPantryItems(recipe, pantryItems)) {
-      final amount = _deductionAmounts[item.id] ?? _defaultDeductionAmount(item);
+      final amount =
+          _deductionAmounts[item.id] ?? _defaultDeductionAmount(item);
       if (amount <= 0) {
         continue;
       }
@@ -336,327 +251,25 @@ class _GuidedCookingScreenState extends State<GuidedCookingScreen> {
     }
   }
 
-  List<PantryItem> _matchingPantryItems(Recipe recipe, List<PantryItem> pantryItems) {
+  List<PantryItem> _matchingPantryItems(
+    Recipe recipe,
+    List<PantryItem> pantryItems,
+  ) {
     final ingredientNames = recipe.ingredients
         .map((ingredient) => ingredient.toLowerCase().trim())
         .where((ingredient) => ingredient.isNotEmpty)
         .toSet();
 
-    return pantryItems.where((item) {
-      return ingredientNames.contains(item.name.toLowerCase().trim());
-    }).toList(growable: false);
+    return pantryItems
+        .where((item) {
+          return ingredientNames.contains(item.name.toLowerCase().trim());
+        })
+        .toList(growable: false);
   }
 
   double _defaultDeductionAmount(PantryItem item) {
     return item.quantity >= 1 ? 1 : item.quantity;
   }
-}
-
-class _PreCookChecklistView extends StatelessWidget {
-  const _PreCookChecklistView({
-    required this.recipe,
-    required this.pantryItems,
-    required this.acceptedSubstitutions,
-    required this.substitutionHints,
-    required this.substitutionsLoading,
-    required this.substitutionsError,
-    required this.onRetrySubstitutions,
-    required this.onSubstitutionToggled,
-    required this.onCancel,
-    required this.onStartCooking,
-  });
-
-  final Recipe recipe;
-  final List<PantryItem> pantryItems;
-  final Set<String> acceptedSubstitutions;
-  final Map<String, String> substitutionHints;
-  final bool substitutionsLoading;
-  final bool substitutionsError;
-  final VoidCallback onRetrySubstitutions;
-  final ValueChanged<String> onSubstitutionToggled;
-  final VoidCallback onCancel;
-  final VoidCallback onStartCooking;
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
-    final ingredientStatus = recipe.ingredients
-        .map((ingredient) => _IngredientChecklistStatus.fromPantry(
-              ingredient: ingredient,
-              pantryItems: pantryItems,
-            ))
-        .toList(growable: false);
-    final availableCount = ingredientStatus.where((item) => item.available).length;
-    final missingItems = ingredientStatus.where((item) => !item.available).toList(growable: false);
-
-    return Scaffold(
-      appBar: AppBar(title: const Text('Pre-cook checklist')),
-      body: ListView(
-        padding: const EdgeInsets.all(AppPadding.md),
-        children: <Widget>[
-          Card(
-            margin: EdgeInsets.zero,
-            child: Padding(
-              padding: const EdgeInsets.all(AppPadding.lg),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Text(
-                    'Get ready for ${recipe.title}',
-                    style: textTheme.headlineMedium,
-                  ),
-                  const SizedBox(height: AppPadding.xs),
-                  Text(
-                    missingItems.isEmpty
-                        ? 'Everything is in place. You can move straight into cooking.'
-                        : '$availableCount of ${recipe.ingredients.length} ingredients are ready. Review the missing items and accept substitutions if needed.',
-                    style: textTheme.bodyMedium?.copyWith(
-                      color: colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                  const SizedBox(height: AppPadding.md),
-                  Wrap(
-                    spacing: AppPadding.sm,
-                    runSpacing: AppPadding.sm,
-                    children: <Widget>[
-                      _ChecklistSummaryChip(
-                        icon: Icons.check_circle_outline,
-                        label: '$availableCount ready',
-                        foregroundColor: colorScheme.primary,
-                        backgroundColor: colorScheme.primaryContainer.withAlpha(140),
-                      ),
-                      _ChecklistSummaryChip(
-                        icon: Icons.error_outline,
-                        label: '${missingItems.length} missing',
-                        foregroundColor: colorScheme.tertiary,
-                        backgroundColor: colorScheme.tertiaryContainer.withAlpha(140),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: AppPadding.md),
-          if (substitutionsError)
-            ApiStatusBanner(
-              message: 'Could not load substitution hints',
-              onRetry: onRetrySubstitutions,
-            ),
-          ...ingredientStatus.map((status) {
-            final substitutionAccepted = acceptedSubstitutions.contains(status.ingredient);
-            return Card(
-              margin: const EdgeInsets.only(bottom: AppPadding.sm),
-              child: Padding(
-                padding: const EdgeInsets.all(AppPadding.md),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: <Widget>[
-                        Icon(
-                          status.available ? Icons.check_circle : Icons.remove_circle_outline,
-                          color: status.available ? colorScheme.primary : colorScheme.tertiary,
-                        ),
-                        const SizedBox(width: AppPadding.sm),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: <Widget>[
-                              Text(status.ingredient, style: textTheme.titleMedium),
-                              const SizedBox(height: AppPadding.xs),
-                              Text(
-                                status.available
-                                    ? '${_formatQuantity(status.item!.quantity)} ${status.item!.unit} available in ${status.item!.storageLocation}'
-                                    : 'Missing from pantry',
-                                style: textTheme.bodySmall?.copyWith(
-                                  color: colorScheme.onSurfaceVariant,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: AppPadding.sm,
-                            vertical: AppPadding.xs,
-                          ),
-                          decoration: BoxDecoration(
-                            color: status.available
-                                ? colorScheme.primaryContainer.withAlpha(140)
-                                : colorScheme.tertiaryContainer.withAlpha(140),
-                            borderRadius: BorderRadius.circular(999),
-                          ),
-                          child: Text(
-                            status.available
-                                ? 'Available'
-                                : (substitutionAccepted ? 'Substituting' : 'Needs review'),
-                            style: textTheme.labelMedium?.copyWith(
-                              color: status.available ? colorScheme.primary : colorScheme.tertiary,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    if (!status.available) ...<Widget>[
-                      const SizedBox(height: AppPadding.sm),
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(AppPadding.md),
-                        decoration: BoxDecoration(
-                          color: colorScheme.surfaceContainerHighest,
-                          borderRadius: BorderRadius.circular(AppRadius.md),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: <Widget>[
-                            substitutionsLoading &&
-                                    !substitutionHints.containsKey(status.ingredient)
-                                ? const SubstitutionHintSkeleton()
-                                : Text(
-                                    substitutionHints[status.ingredient] ??
-                                        '${status.ingredient}: swap with a similar pantry item and adjust cook time',
-                                    style: textTheme.bodyMedium,
-                                  ),
-                            const SizedBox(height: AppPadding.sm),
-                            Align(
-                              alignment: Alignment.centerLeft,
-                              child: OutlinedButton.icon(
-                                onPressed: () => onSubstitutionToggled(status.ingredient),
-                                icon: Icon(
-                                  substitutionAccepted
-                                      ? Icons.check_circle_outline
-                                      : Icons.swap_horiz,
-                                ),
-                                label: Text(
-                                  substitutionAccepted
-                                      ? 'Substitution accepted'
-                                      : 'Accept substitution',
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-            );
-          }),
-        ],
-      ),
-      bottomNavigationBar: SafeArea(
-        minimum: const EdgeInsets.fromLTRB(
-          AppPadding.md,
-          AppPadding.sm,
-          AppPadding.md,
-          AppPadding.md,
-        ),
-        child: Row(
-          children: <Widget>[
-            Expanded(
-              child: OutlinedButton(
-                onPressed: onCancel,
-                child: const Text('Cancel'),
-              ),
-            ),
-            const SizedBox(width: AppPadding.sm),
-            Expanded(
-              child: FilledButton.icon(
-                onPressed: onStartCooking,
-                icon: const Icon(Icons.play_arrow),
-                label: Text(
-                  missingItems.isEmpty ? 'Start cooking' : 'Cook with plan',
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _ChecklistSummaryChip extends StatelessWidget {
-  const _ChecklistSummaryChip({
-    required this.icon,
-    required this.label,
-    required this.foregroundColor,
-    required this.backgroundColor,
-  });
-
-  final IconData icon;
-  final String label;
-  final Color foregroundColor;
-  final Color backgroundColor;
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppPadding.md,
-        vertical: AppPadding.sm,
-      ),
-      decoration: BoxDecoration(
-        color: backgroundColor,
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          Icon(icon, size: 16, color: foregroundColor),
-          const SizedBox(width: AppPadding.xs),
-          Text(
-            label,
-            style: textTheme.labelLarge?.copyWith(color: foregroundColor),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _IngredientChecklistStatus {
-  const _IngredientChecklistStatus({
-    required this.ingredient,
-    required this.available,
-    required this.item,
-  });
-
-  final String ingredient;
-  final bool available;
-  final PantryItem? item;
-
-  factory _IngredientChecklistStatus.fromPantry({
-    required String ingredient,
-    required List<PantryItem> pantryItems,
-  }) {
-    PantryItem? matchedItem;
-    for (final item in pantryItems) {
-      if (item.name.toLowerCase().trim() == ingredient.toLowerCase().trim()) {
-        matchedItem = item;
-        break;
-      }
-    }
-
-    return _IngredientChecklistStatus(
-      ingredient: ingredient,
-      available: matchedItem != null,
-      item: matchedItem,
-    );
-  }
-}
-
-String _formatQuantity(double value) {
-  if (value == value.roundToDouble()) {
-    return value.toStringAsFixed(0);
-  }
-  return value.toStringAsFixed(1);
 }
 
 class _CompletionView extends StatelessWidget {
@@ -743,7 +356,9 @@ class _CompletionView extends StatelessWidget {
                       return IconButton(
                         onPressed: () => onRatingChanged(star),
                         icon: Icon(
-                          star <= selectedRating ? Icons.star : Icons.star_border,
+                          star <= selectedRating
+                              ? Icons.star
+                              : Icons.star_border,
                           color: star <= selectedRating
                               ? colorScheme.secondary
                               : colorScheme.outline,
@@ -801,7 +416,8 @@ class _CompletionView extends StatelessWidget {
                     )
                   else
                     ...matchedItems.map((item) {
-                      final amount = deductionAmounts[item.id] ??
+                      final amount =
+                          deductionAmounts[item.id] ??
                           (item.quantity >= 1 ? 1.0 : item.quantity);
                       return Container(
                         margin: const EdgeInsets.only(bottom: AppPadding.sm),
@@ -827,7 +443,10 @@ class _CompletionView extends StatelessWidget {
                                 IconButton(
                                   onPressed: () => onDeductionChanged(
                                     item.id,
-                                    _normalizedAmount(amount - 0.5, item.quantity),
+                                    _normalizedAmount(
+                                      amount - 0.5,
+                                      item.quantity,
+                                    ),
                                   ),
                                   icon: const Icon(Icons.remove_circle_outline),
                                 ),
@@ -841,7 +460,10 @@ class _CompletionView extends StatelessWidget {
                                 IconButton(
                                   onPressed: () => onDeductionChanged(
                                     item.id,
-                                    _normalizedAmount(amount + 0.5, item.quantity),
+                                    _normalizedAmount(
+                                      amount + 0.5,
+                                      item.quantity,
+                                    ),
                                   ),
                                   icon: const Icon(Icons.add_circle_outline),
                                 ),
@@ -895,9 +517,11 @@ class _CompletionView extends StatelessWidget {
         .where((ingredient) => ingredient.isNotEmpty)
         .toSet();
 
-    return pantryItems.where((item) {
-      return ingredients.contains(item.name.toLowerCase().trim());
-    }).toList(growable: false);
+    return pantryItems
+        .where((item) {
+          return ingredients.contains(item.name.toLowerCase().trim());
+        })
+        .toList(growable: false);
   }
 
   static double _normalizedAmount(double value, double max) {

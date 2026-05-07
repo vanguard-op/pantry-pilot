@@ -14,18 +14,28 @@ import '../widgets/api_status_banner.dart';
 import '../widgets/substitution_hint_skeleton.dart';
 
 class RecipeDetailScreen extends StatefulWidget {
-  const RecipeDetailScreen({super.key, required this.recipeId});
+  const RecipeDetailScreen({
+    super.key,
+    required this.recipeId,
+    this.plannedMealId,
+  });
 
   final String recipeId;
+  final String? plannedMealId;
 
   @override
   State<RecipeDetailScreen> createState() => _RecipeDetailScreenState();
 }
 
 class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
-  Map<String, String> _substitutionHints = const <String, String>{};
+  Map<String, SubstitutionHint> _substitutionHints =
+      const <String, SubstitutionHint>{};
   bool _substitutionsLoading = false;
   bool _substitutionsError = false;
+
+  /// Maps missing ingredient name → accepted pantry substitute display name.
+  /// Updated when the user taps "Accept" in the swap bottom sheet.
+  final Map<String, String> _acceptedSubstitutes = <String, String>{};
   late Future<PantryCoverage> _coverageFuture;
 
   @override
@@ -54,6 +64,12 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                   _substitutionHints = hints;
                   _substitutionsLoading = false;
                   _substitutionsError = false;
+                  // Drop any previously accepted substitutes whose ingredient
+                  // is no longer reported as missing after a retry.
+                  _acceptedSubstitutes.removeWhere(
+                    (ingredient, _) =>
+                        !coverage.missingIngredients.contains(ingredient),
+                  );
                 });
               }
             })
@@ -69,7 +85,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
         setState(() {
           _substitutionsLoading = false;
           _substitutionsError = false;
-          _substitutionHints = const <String, String>{};
+          _substitutionHints = const <String, SubstitutionHint>{};
         });
       }
       return coverage;
@@ -79,11 +95,136 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
   /// Resets all async state and retries coverage + hints fetches.
   void _retryAll() {
     setState(() {
-      _substitutionHints = const <String, String>{};
+      _substitutionHints = const <String, SubstitutionHint>{};
       _substitutionsLoading = false;
       _substitutionsError = false;
+      _acceptedSubstitutes.clear();
       _coverageFuture = _fetchCoverage();
     });
+  }
+
+  /// Opens a bottom sheet that lets the user pick a pantry substitute for
+  /// [ingredient]. If pantry options exist they are shown as selectable chips;
+  /// the fallback text hint is always shown below.
+  void _showSwapSheet(BuildContext context, String ingredient) {
+    final hint = _substitutionHints[ingredient];
+    final subs = hint?.pantrySubstitutes ?? const <PantrySubstituteOption>[];
+    final hintText =
+        hint?.hint ??
+        '$ingredient: swap with a similar pantry item and adjust cook time';
+    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+    final currentAccepted = _acceptedSubstitutes[ingredient];
+
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
+      ),
+      builder: (sheetContext) {
+        // StatefulBuilder so chip selection state is local to the sheet.
+        String? selectedSub = currentAccepted;
+        return StatefulBuilder(
+          builder: (sheetContext, setSheetState) {
+            return Padding(
+              padding: EdgeInsets.fromLTRB(
+                AppPadding.lg,
+                AppPadding.md,
+                AppPadding.lg,
+                AppPadding.lg + MediaQuery.of(sheetContext).viewInsets.bottom,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      margin: const EdgeInsets.only(bottom: AppPadding.md),
+                      decoration: BoxDecoration(
+                        color: colorScheme.outlineVariant,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  Text('Swap ingredient', style: textTheme.titleLarge),
+                  const SizedBox(height: AppPadding.xs),
+                  Text(
+                    ingredient,
+                    style: textTheme.bodyMedium?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  const SizedBox(height: AppPadding.md),
+                  if (subs.isNotEmpty) ...<Widget>[
+                    Text('In your pantry', style: textTheme.labelLarge),
+                    const SizedBox(height: AppPadding.sm),
+                    Wrap(
+                      spacing: AppPadding.sm,
+                      runSpacing: AppPadding.sm,
+                      children: subs
+                          .map(
+                            (sub) => ChoiceChip(
+                              label: Text(sub.pantryItemName),
+                              selected: selectedSub == sub.pantryItemName,
+                              onSelected: (_) => setSheetState(
+                                () => selectedSub = sub.pantryItemName,
+                              ),
+                            ),
+                          )
+                          .toList(growable: false),
+                    ),
+                    const SizedBox(height: AppPadding.md),
+                  ],
+                  Text('Tip', style: textTheme.labelLarge),
+                  const SizedBox(height: AppPadding.xs),
+                  Text(hintText, style: textTheme.bodyMedium),
+                  const SizedBox(height: AppPadding.lg),
+                  Row(
+                    children: <Widget>[
+                      if (currentAccepted != null)
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: () {
+                              setState(
+                                () => _acceptedSubstitutes.remove(ingredient),
+                              );
+                              Navigator.of(sheetContext).pop();
+                            },
+                            child: const Text('Undo'),
+                          ),
+                        ),
+                      if (currentAccepted != null)
+                        const SizedBox(width: AppPadding.sm),
+                      Expanded(
+                        child: FilledButton(
+                          onPressed: selectedSub == null
+                              ? null
+                              : () {
+                                  setState(
+                                    () => _acceptedSubstitutes[ingredient] =
+                                        selectedSub!,
+                                  );
+                                  Navigator.of(sheetContext).pop();
+                                },
+                          child: Text(
+                            selectedSub == null
+                                ? 'Select a substitute'
+                                : 'Accept substitute',
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 
   @override
@@ -152,9 +293,14 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                         label: recipe.difficulty,
                       ),
                       _RecipeMetaChip(
-                        icon: recipe.isGlobal
-                            ? Icons.public
-                            : Icons.person_outline,
+                        icon: switch (recipe.ownershipScope) {
+                          RecipeOwnershipScope.starter =>
+                            Icons.menu_book_outlined,
+                          RecipeOwnershipScope.plus =>
+                            Icons.workspace_premium_outlined,
+                          RecipeOwnershipScope.custom =>
+                            Icons.edit_note_outlined,
+                        },
                         label: recipe.ownershipLabel,
                       ),
                     ],
@@ -213,6 +359,17 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                   .map((e) => e.toLowerCase())
                   .toSet();
 
+              // Client-side coverage adjusted for accepted substitutes.
+              // Each accepted substitute counts as one additional matched ingredient.
+              final effectiveMatched =
+                  coverage.matchedCount + _acceptedSubstitutes.length;
+              final effectivePercent = coverage.totalCount == 0
+                  ? 100
+                  : ((effectiveMatched / coverage.totalCount) * 100)
+                        .round()
+                        .clamp(0, 100);
+              final allCovered = effectiveMatched >= coverage.totalCount;
+
               return Column(
                 children: <Widget>[
                   Card(
@@ -231,9 +388,9 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                                 ),
                               ),
                               Text(
-                                '${coverage.coveragePercent}%',
+                                '$effectivePercent%',
                                 style: textTheme.headlineSmall?.copyWith(
-                                  color: coverage.missingIngredients.isEmpty
+                                  color: allCovered
                                       ? colorScheme.primary
                                       : colorScheme.tertiary,
                                 ),
@@ -242,9 +399,9 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                           ),
                           const SizedBox(height: AppPadding.xs),
                           Text(
-                            coverage.missingIngredients.isEmpty
-                                ? 'You already have everything needed for this recipe.'
-                                : '${coverage.matchedCount} of ${coverage.totalCount} ingredients are already in your pantry.',
+                            allCovered
+                                ? 'You have everything needed for this recipe.'
+                                : '$effectiveMatched of ${coverage.totalCount} ingredients are ready or substituted.',
                             style: textTheme.bodyMedium?.copyWith(
                               color: colorScheme.onSurfaceVariant,
                             ),
@@ -254,51 +411,106 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                             final available = availableSet.contains(
                               ingredient.toLowerCase(),
                             );
+                            final acceptedSub =
+                                _acceptedSubstitutes[ingredient];
+                            final isSubstituted =
+                                !available && acceptedSub != null;
+
+                            // Determine row colour/icon based on status.
+                            final rowColor = available
+                                ? colorScheme.primaryContainer.withAlpha(120)
+                                : isSubstituted
+                                ? colorScheme.secondaryContainer.withAlpha(120)
+                                : colorScheme.surfaceContainerHighest;
+                            final statusIcon = available
+                                ? Icons.check_circle_outline
+                                : isSubstituted
+                                ? Icons.swap_horiz
+                                : Icons.remove_circle_outline;
+                            final statusColor = available
+                                ? colorScheme.primary
+                                : isSubstituted
+                                ? colorScheme.secondary
+                                : colorScheme.tertiary;
+                            final statusLabel = available
+                                ? 'Ready'
+                                : isSubstituted
+                                ? 'Substituted'
+                                : 'Missing';
+
                             return Container(
                               margin: const EdgeInsets.only(
                                 bottom: AppPadding.sm,
                               ),
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: AppPadding.md,
-                                vertical: AppPadding.sm,
-                              ),
                               decoration: BoxDecoration(
-                                color: available
-                                    ? colorScheme.primaryContainer.withAlpha(
-                                        120,
-                                      )
-                                    : colorScheme.surfaceContainerHighest,
+                                color: rowColor,
                                 borderRadius: BorderRadius.circular(
                                   AppRadius.md,
                                 ),
                               ),
-                              child: Row(
-                                children: <Widget>[
-                                  Icon(
-                                    available
-                                        ? Icons.check_circle_outline
-                                        : Icons.remove_circle_outline,
-                                    size: 18,
-                                    color: available
-                                        ? colorScheme.primary
-                                        : colorScheme.tertiary,
+                              child: InkWell(
+                                // Tapping a missing or substituted ingredient
+                                // opens the swap sheet to change the selection.
+                                onTap: available
+                                    ? null
+                                    : () => _showSwapSheet(context, ingredient),
+                                borderRadius: BorderRadius.circular(
+                                  AppRadius.md,
+                                ),
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: AppPadding.md,
+                                    vertical: AppPadding.sm,
                                   ),
-                                  const SizedBox(width: AppPadding.sm),
-                                  Expanded(
-                                    child: Text(
-                                      ingredient,
-                                      style: textTheme.bodyMedium,
-                                    ),
+                                  child: Row(
+                                    children: <Widget>[
+                                      Icon(
+                                        statusIcon,
+                                        size: 18,
+                                        color: statusColor,
+                                      ),
+                                      const SizedBox(width: AppPadding.sm),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: <Widget>[
+                                            Text(
+                                              ingredient,
+                                              style: textTheme.bodyMedium,
+                                            ),
+                                            if (isSubstituted)
+                                              Text(
+                                                'Using $acceptedSub',
+                                                style: textTheme.labelSmall
+                                                    ?.copyWith(
+                                                      color:
+                                                          colorScheme.secondary,
+                                                    ),
+                                              ),
+                                          ],
+                                        ),
+                                      ),
+                                      Text(
+                                        statusLabel,
+                                        style: textTheme.labelMedium?.copyWith(
+                                          color: statusColor,
+                                        ),
+                                      ),
+                                      if (!available)
+                                        Padding(
+                                          padding: const EdgeInsets.only(
+                                            left: AppPadding.xs,
+                                          ),
+                                          child: Icon(
+                                            Icons.chevron_right,
+                                            size: 16,
+                                            color: colorScheme.onSurfaceVariant,
+                                          ),
+                                        ),
+                                    ],
                                   ),
-                                  Text(
-                                    available ? 'Ready' : 'Missing',
-                                    style: textTheme.labelMedium?.copyWith(
-                                      color: available
-                                          ? colorScheme.primary
-                                          : colorScheme.tertiary,
-                                    ),
-                                  ),
-                                ],
+                                ),
                               ),
                             );
                           }),
@@ -306,7 +518,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                       ),
                     ),
                   ),
-                  // ── Quick substitutions ──────────────────────────────
+                  // ── Substitutions ────────────────────────────────────
                   if (coverage.missingIngredients.isNotEmpty) ...<Widget>[
                     const SizedBox(height: AppPadding.md),
                     if (_substitutionsError)
@@ -323,42 +535,171 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: <Widget>[
                               Text(
-                                'Quick substitutions',
+                                'Substitutions',
                                 style: textTheme.titleMedium,
                               ),
                               const SizedBox(height: AppPadding.sm),
                               ...coverage.missingIngredients.map((ingredient) {
-                                final hasHint = _substitutionHints.containsKey(
-                                  ingredient,
-                                );
+                                final hint = _substitutionHints[ingredient];
+                                final acceptedSub =
+                                    _acceptedSubstitutes[ingredient];
                                 final showSkeleton =
-                                    _substitutionsLoading && !hasHint;
+                                    _substitutionsLoading && hint == null;
+
                                 return Padding(
                                   padding: const EdgeInsets.only(
-                                    bottom: AppPadding.sm,
+                                    bottom: AppPadding.md,
                                   ),
-                                  child: Row(
+                                  child: Column(
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,
                                     children: <Widget>[
-                                      Padding(
-                                        padding: const EdgeInsets.only(top: 2),
-                                        child: Icon(
-                                          Icons.swap_horiz,
-                                          size: 16,
-                                          color: colorScheme.secondary,
-                                        ),
-                                      ),
-                                      const SizedBox(width: AppPadding.sm),
-                                      Expanded(
-                                        child: showSkeleton
-                                            ? const SubstitutionHintSkeleton()
-                                            : Text(
-                                                _substitutionHints[ingredient] ??
-                                                    '$ingredient: swap with a similar pantry item and adjust cook time',
-                                                style: textTheme.bodyMedium,
+                                      Row(
+                                        children: <Widget>[
+                                          Icon(
+                                            acceptedSub != null
+                                                ? Icons.check_circle_outline
+                                                : Icons.swap_horiz,
+                                            size: 16,
+                                            color: acceptedSub != null
+                                                ? colorScheme.secondary
+                                                : colorScheme.onSurfaceVariant,
+                                          ),
+                                          const SizedBox(width: AppPadding.sm),
+                                          Expanded(
+                                            child: Text(
+                                              ingredient,
+                                              style: textTheme.bodyMedium
+                                                  ?.copyWith(
+                                                    fontWeight: FontWeight.w500,
+                                                  ),
+                                            ),
+                                          ),
+                                          if (acceptedSub != null)
+                                            TextButton(
+                                              onPressed: () => setState(
+                                                () => _acceptedSubstitutes
+                                                    .remove(ingredient),
                                               ),
+                                              style: TextButton.styleFrom(
+                                                visualDensity:
+                                                    VisualDensity.compact,
+                                                padding: EdgeInsets.zero,
+                                              ),
+                                              child: const Text('Undo'),
+                                            ),
+                                        ],
                                       ),
+                                      const SizedBox(height: AppPadding.xs),
+                                      if (acceptedSub != null)
+                                        // Show which pantry item was accepted.
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: AppPadding.sm,
+                                            vertical: AppPadding.xs,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: colorScheme
+                                                .secondaryContainer
+                                                .withAlpha(160),
+                                            borderRadius: BorderRadius.circular(
+                                              999,
+                                            ),
+                                          ),
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: <Widget>[
+                                              Icon(
+                                                Icons.kitchen_outlined,
+                                                size: 14,
+                                                color: colorScheme
+                                                    .onSecondaryContainer,
+                                              ),
+                                              const SizedBox(
+                                                width: AppPadding.xs,
+                                              ),
+                                              Text(
+                                                'Using $acceptedSub',
+                                                style: textTheme.labelSmall
+                                                    ?.copyWith(
+                                                      color: colorScheme
+                                                          .onSecondaryContainer,
+                                                    ),
+                                              ),
+                                            ],
+                                          ),
+                                        )
+                                      else if (showSkeleton)
+                                        const SubstitutionHintSkeleton()
+                                      else ...<Widget>[
+                                        // Show pantry-sourced chips if available,
+                                        // with a fallback to the text hint.
+                                        if (hint != null &&
+                                            hint
+                                                .pantrySubstitutes
+                                                .isNotEmpty) ...<Widget>[
+                                          Text(
+                                            'In your pantry:',
+                                            style: textTheme.labelSmall
+                                                ?.copyWith(
+                                                  color: colorScheme
+                                                      .onSurfaceVariant,
+                                                ),
+                                          ),
+                                          const SizedBox(height: AppPadding.xs),
+                                          Wrap(
+                                            spacing: AppPadding.sm,
+                                            runSpacing: AppPadding.xs,
+                                            children: hint.pantrySubstitutes
+                                                .map(
+                                                  (sub) => ActionChip(
+                                                    avatar: const Icon(
+                                                      Icons.swap_horiz,
+                                                      size: 16,
+                                                    ),
+                                                    label: Text(
+                                                      sub.pantryItemName,
+                                                    ),
+                                                    onPressed: () => setState(
+                                                      () =>
+                                                          _acceptedSubstitutes[ingredient] =
+                                                              sub.pantryItemName,
+                                                    ),
+                                                  ),
+                                                )
+                                                .toList(growable: false),
+                                          ),
+                                          const SizedBox(height: AppPadding.xs),
+                                        ],
+                                        Text(
+                                          hint?.hint ??
+                                              '$ingredient: swap with a similar pantry item and adjust cook time',
+                                          style: textTheme.bodySmall?.copyWith(
+                                            color: colorScheme.onSurfaceVariant,
+                                          ),
+                                        ),
+                                        const SizedBox(height: AppPadding.xs),
+                                        // Only show the full swap sheet button
+                                        // when no pantry chip shortcuts exist.
+                                        if (hint == null ||
+                                            hint.pantrySubstitutes.isEmpty)
+                                          TextButton.icon(
+                                            onPressed: () => _showSwapSheet(
+                                              context,
+                                              ingredient,
+                                            ),
+                                            icon: const Icon(
+                                              Icons.swap_horiz,
+                                              size: 16,
+                                            ),
+                                            label: const Text('Swap'),
+                                            style: TextButton.styleFrom(
+                                              visualDensity:
+                                                  VisualDensity.compact,
+                                              padding: EdgeInsets.zero,
+                                            ),
+                                          ),
+                                      ],
                                     ],
                                   ),
                                 );
@@ -448,12 +789,27 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
             const SizedBox(width: AppPadding.sm),
             Expanded(
               child: FilledButton.icon(
-                onPressed: () => context.pushNamed(
-                  AppRouter.recipeCookName,
-                  pathParameters: <String, String>{
-                    AppRouter.recipeIdParam: widget.recipeId,
-                  },
-                ),
+                onPressed: () {
+                  if (widget.plannedMealId == null) {
+                    context.pushNamed(
+                      AppRouter.recipeCookName,
+                      pathParameters: <String, String>{
+                        AppRouter.recipeIdParam: widget.recipeId,
+                      },
+                    );
+                    return;
+                  }
+
+                  context.pushNamed(
+                    AppRouter.recipeCookName,
+                    pathParameters: <String, String>{
+                      AppRouter.recipeIdParam: widget.recipeId,
+                    },
+                    queryParameters: <String, dynamic>{
+                      'plannedMealId': widget.plannedMealId!,
+                    },
+                  );
+                },
                 icon: const Icon(Icons.play_arrow),
                 label: const Text('Start cooking'),
               ),
