@@ -10,22 +10,17 @@ All screens are listed below, grouped by flow. Each entry includes the screen na
 ### 1. Welcome Screen
 - **Purpose**: Introduce the app and build initial trust
 - **Content**: App name, tagline, brief value proposition (3 bullets max)
-- **Actions**: "Get Started", "Sign In (returning user)"
-- **Navigates to**: Account Setup
+- **Actions**: "Get Started" → launches Cognito hosted UI for authentication
+- **Note**: Sign-in, sign-up, social login, and MFA are all handled by Cognito. No in-app auth screen.
+- **Navigates to**: Household Profile Setup (on successful Cognito session)
 
-### 2. Account Setup Screen
-- **Purpose**: Create account or sign in
-- **Content**: Email/password form, social sign-in options, guest mode
-- **Actions**: Submit form, pick social provider, continue as guest
-- **Navigates to**: Household Profile Setup
-
-### 3. Household Profile Setup Screen
+### 2. Household Profile Setup Screen
 - **Purpose**: Personalize the experience for the household
 - **Content**: Household size, dietary restrictions, cooking skill selector
 - **Actions**: Fill fields, skip individual fields, "Next"
 - **Navigates to**: Pantry Seed Screen
 
-### 4. Pantry Seed Screen
+### 3. Pantry Seed Screen
 - **Purpose**: Bootstrap initial inventory for better first-use recommendations
 - **Content**: Common staples checklist, manual entry option, skip option
 - **Actions**: Toggle staple items, tap "Add manually", "Skip for now", "Done"
@@ -155,7 +150,7 @@ All screens are listed below, grouped by flow. Each entry includes the screen na
 
 | Flow | Screens |
 |---|---|
-| Onboarding | 4 |
+| Onboarding | 3 (auth delegated to Cognito hosted UI) |
 | Core Navigation | 1 |
 | Weekly Planning | 3 |
 | Recipe | 2 |
@@ -163,4 +158,4 @@ All screens are listed below, grouped by flow. Each entry includes the screen na
 | Inventory Management | 2 |
 | Waste Reduction | 2 |
 | Supporting | 2 |
-| **Total** | **19** |
+| **Total** | **18** |

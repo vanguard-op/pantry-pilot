@@ -12,7 +12,9 @@ User downloads the app and launches it for the first time.
 
 ### Steps
 1. Welcome screen → app name, tagline, and brief value proposition
-2. Account creation (email/social sign-in or guest mode)
+2. Authentication via Cognito hosted UI (handles email/password, social sign-in, and MFA — no in-app auth screens)
+   - On success: Cognito returns a session token and the app proceeds
+   - Returning users bypass steps 3–4 and land directly on the dashboard
 3. Household profile setup
    - Number of people
    - Dietary restrictions or preferences (optional)
