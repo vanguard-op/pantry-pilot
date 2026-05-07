@@ -85,9 +85,10 @@ All screens are listed below, grouped by flow. Each entry includes the screen na
 - **Navigates to**: Next/Previous Step, Completion Screen
 
 ### 12. Meal Completion Screen
-- **Purpose**: Mark the meal done, collect quick feedback, update pantry
-- **Content**: Completion message, star rating prompt, "Save as Favorite" toggle, pantry deduction summary
-- **Actions**: Rate recipe, toggle favorite, confirm or adjust pantry deductions, "Done"
+- **Purpose**: Mark the meal done, collect quick feedback, update pantry, and log leftovers
+- **Content**: Completion message, star rating prompt, "Save as Favorite" toggle, leftover prompt ("Did you save any leftovers?"), portions input, pantry deduction summary
+- **Actions**: Rate recipe, toggle favorite, set leftover portions (yes/no + quantity), confirm or adjust pantry deductions, "Done"
+- **Note**: Logged leftovers are stored against the meal and appear in the Waste Reduction screen immediately
 - **Navigates to**: Home Dashboard, Pantry (if deductions need review)
 
 ---

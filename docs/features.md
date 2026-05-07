@@ -47,8 +47,11 @@ Recipes follow a three-layer ownership model:
 
 ### 5. Waste Reduction Nudges
 - "Cook this first" queue for near-expiry ingredients
-- Leftover-based recipe suggestions
+- Leftover logging on Meal Completion Screen: prompt to record remaining portions after every guided cook session
+- Leftover-based recipe suggestions surfaced in the Waste Reduction screen
 - Weekly waste-reduction summary
+
+> **Post-MVP**: Manual leftover entry from the Waste Reduction screen for meals cooked outside the app
 
 ## Post-MVP Features
 - Multi-user household roles and permissions

@@ -96,6 +96,8 @@ A confirmed weekly meal plan is saved. Missing ingredients are in the shopping l
    - "Meal complete" confirmation
    - Prompt: rate the recipe (quick 1–5 stars)
    - Option: log it as a household favorite
+   - Leftover prompt: "Did you save any leftovers?" → user sets approximate portions remaining
+   - Logged leftovers are stored against the meal and surface immediately in the Waste Reduction screen
 6. Pantry auto-update
    - Used ingredients are deducted from inventory
    - User can confirm or adjust quantities before saving
@@ -159,9 +161,9 @@ Pantry reflects current household stock. Expiry alerts and low-stock items are v
 2. For each use-soon ingredient, the app surfaces:
    - Recipes that primarily use that ingredient
    - Quick-use ideas (e.g., "Add spinach to scrambled eggs")
-3. For leftover meals:
+3. For leftover meals (logged from the Meal Completion Screen):
    - Suggestions for how to repurpose them (e.g., "Turn yesterday's chicken into a wrap")
-   - User can log leftover portions used
+   - User can mark leftover portions as used or discard them
 4. Weekly waste summary (Friday prompt)
    - Shows items used before expiry vs. discarded
    - Highlights streaks ("You wasted nothing this week!")
