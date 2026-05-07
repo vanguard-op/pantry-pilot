@@ -43,15 +43,22 @@ class RecipeSummaryCard extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: <Widget>[
-                        if (leadingLabel != null) ...<Widget>[
-                          Text(
-                            leadingLabel!,
-                            style: textTheme.labelMedium?.copyWith(
-                              color: colorScheme.secondary,
-                            ),
-                          ),
-                          const SizedBox(height: AppPadding.xs),
-                        ],
+                        Wrap(
+                          spacing: AppPadding.sm,
+                          runSpacing: AppPadding.xs,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          children: <Widget>[
+                            if (leadingLabel != null)
+                              Text(
+                                leadingLabel!,
+                                style: textTheme.labelMedium?.copyWith(
+                                  color: colorScheme.secondary,
+                                ),
+                              ),
+                            _RecipeOwnershipBadge(recipe: recipe),
+                          ],
+                        ),
+                        const SizedBox(height: AppPadding.xs),
                         Text(recipe.title, style: textTheme.titleLarge),
                         const SizedBox(height: AppPadding.xs),
                         Text(
@@ -136,6 +143,48 @@ class RecipeSummaryCard extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _RecipeOwnershipBadge extends StatelessWidget {
+  const _RecipeOwnershipBadge({required this.recipe});
+
+  final Recipe recipe;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+
+    final icon = recipe.isGlobal ? Icons.public : Icons.person_outline;
+    final foreground = recipe.isGlobal
+        ? colorScheme.primary
+        : colorScheme.secondary;
+    final background = recipe.isGlobal
+        ? colorScheme.primaryContainer.withAlpha(110)
+        : colorScheme.secondaryContainer.withAlpha(120);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppPadding.sm,
+        vertical: AppPadding.xs,
+      ),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          Icon(icon, size: 14, color: foreground),
+          const SizedBox(width: AppPadding.xs),
+          Text(
+            recipe.ownershipLabel,
+            style: textTheme.labelMedium?.copyWith(color: foreground),
+          ),
+        ],
       ),
     );
   }

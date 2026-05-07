@@ -3,7 +3,15 @@ from datetime import date, timedelta
 from sqlmodel import select
 
 from app.api.deps import SessionDep, UserIdDep
-from app.models import BoughtItem, PantryItem, PlannedMeal, Recipe, ShoppingListItem, ShoppingListResponse
+from app.models import (
+    BoughtItem,
+    PantryItem,
+    PlannedMeal,
+    Recipe,
+    RecipeOwnershipScope,
+    ShoppingListItem,
+    ShoppingListResponse,
+)
 
 
 class ShoppingService:
@@ -21,7 +29,13 @@ class ShoppingService:
             PlannedMeal.date <= end_date,
         )
         pantry_statement = select(PantryItem).where(PantryItem.user_id == self._user_id)
-        recipe_statement = select(Recipe).where(Recipe.user_id == self._user_id)
+        recipe_statement = select(Recipe).where(
+            (Recipe.ownership_scope == RecipeOwnershipScope.global_catalog)
+            | (
+                (Recipe.ownership_scope == RecipeOwnershipScope.custom_account)
+                & (Recipe.user_id == self._user_id)
+            )
+        )
 
         meals = list(self._session.exec(meals_statement).all())
         pantry_items = list(self._session.exec(pantry_statement).all())

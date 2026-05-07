@@ -4,7 +4,7 @@ from collections.abc import Sequence
 
 from sqlmodel import Session, select
 
-from app.models import Difficulty, Recipe
+from app.models import Difficulty, Recipe, RecipeOwnershipScope
 
 
 def seed_recipes_if_empty(session: Session, *, seed_user_id: str) -> None:
@@ -18,7 +18,7 @@ def seed_recipes_if_empty(session: Session, *, seed_user_id: str) -> None:
     session.commit()
 
 
-def _generate_starter_recipes(seed_user_id: str) -> Sequence[Recipe]:
+def _generate_starter_recipes(_seed_user_id: str) -> Sequence[Recipe]:
     proteins = ["Chicken", "Tofu", "Beans", "Egg", "Tuna"]
     carbs = ["Rice", "Pasta", "Potato", "Quinoa", "Wrap"]
     vegetables = ["Broccoli", "Carrot", "Bell Pepper", "Spinach", "Zucchini"]
@@ -84,7 +84,9 @@ def _generate_starter_recipes(seed_user_id: str) -> Sequence[Recipe]:
 
                 recipes.append(
                     Recipe(
-                        user_id=seed_user_id,
+                        # Starter recipes are platform-owned and shared across accounts.
+                        user_id=None,
+                        ownership_scope=RecipeOwnershipScope.global_catalog,
                         title=title,
                         description="A practical weekday meal focused on pantry-friendly ingredients and easy prep.",
                         prep_minutes=prep,

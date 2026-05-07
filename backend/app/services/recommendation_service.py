@@ -10,6 +10,9 @@ from app.models import (
     PlannedMeal,
     PlannerRecommendationsResponse,
     Recipe,
+    RecipeAccountMetadata,
+    RecipeOwnershipScope,
+    RecipePublic,
     RecipeRecommendation,
 )
 
@@ -54,8 +57,50 @@ class RecommendationService:
         leftovers = self._leftover_suggestions(recipes=recipes, planned_meals=planned_meals)
         return DashboardRecommendationsResponse(use_soon=use_soon, leftovers=leftovers)
 
-    def _list_recipes(self) -> list[Recipe]:
-        return list(self._session.exec(select(Recipe).where(Recipe.user_id == self._user_id)).all())
+    def _list_recipes(self) -> list[RecipePublic]:
+        statement = select(Recipe).where(
+            (Recipe.ownership_scope == RecipeOwnershipScope.global_catalog)
+            | (
+                (Recipe.ownership_scope == RecipeOwnershipScope.custom_account)
+                & (Recipe.user_id == self._user_id)
+            )
+        )
+        recipes = list(self._session.exec(statement).all())
+
+        recipe_ids = [item.id for item in recipes]
+        if not recipe_ids:
+            return []
+
+        metadata_statement = select(RecipeAccountMetadata).where(
+            RecipeAccountMetadata.user_id == self._user_id,
+            RecipeAccountMetadata.recipe_id.in_(recipe_ids),
+        )
+        metadata = {
+            item.recipe_id: item
+            for item in self._session.exec(metadata_statement).all()
+        }
+
+        decorated: list[RecipePublic] = []
+        for recipe in recipes:
+            decorated.append(
+                RecipePublic(
+                    id=recipe.id,
+                    title=recipe.title,
+                    description=recipe.description,
+                    prep_minutes=recipe.prep_minutes,
+                    cook_minutes=recipe.cook_minutes,
+                    servings=recipe.servings,
+                    difficulty=recipe.difficulty,
+                    tags=recipe.tags,
+                    ingredients=recipe.ingredients,
+                    steps=recipe.steps,
+                    ownership_scope=recipe.ownership_scope,
+                    is_favorite=metadata[recipe.id].is_favorite if recipe.id in metadata else False,
+                    created_at=recipe.created_at,
+                    updated_at=recipe.updated_at,
+                )
+            )
+        return decorated
 
     def _list_pantry_items(self) -> list[PantryItem]:
         return list(
@@ -69,7 +114,7 @@ class RecommendationService:
 
     def _rank_recipes(
         self,
-        recipes: list[Recipe],
+        recipes: list[RecipePublic],
         pantry_items: list[PantryItem],
         planned_meals: list[PlannedMeal],
     ) -> list[RecipeRecommendation]:
@@ -121,7 +166,9 @@ class RecommendationService:
         ranked.sort(key=lambda item: item.score, reverse=True)
         return ranked
 
-    def _repeat_recipes(self, recipes: list[Recipe], planned_meals: list[PlannedMeal]) -> list[Recipe]:
+    def _repeat_recipes(
+        self, recipes: list[RecipePublic], planned_meals: list[PlannedMeal]
+    ) -> list[RecipePublic]:
         recent_counts = self._recent_plan_counts(planned_meals)
         repeated = [recipe for recipe in recipes if recent_counts.get(recipe.id, 0) > 0]
         repeated.sort(key=lambda recipe: recent_counts.get(recipe.id, 0), reverse=True)
@@ -129,7 +176,7 @@ class RecommendationService:
 
     def _leftover_suggestions(
         self,
-        recipes: list[Recipe],
+        recipes: list[RecipePublic],
         planned_meals: list[PlannedMeal],
     ) -> list[LeftoverSuggestion]:
         recipe_by_id = {recipe.id: recipe for recipe in recipes}
@@ -145,7 +192,7 @@ class RecommendationService:
             if source is None:
                 continue
 
-            best_match: Recipe | None = None
+            best_match: RecipePublic | None = None
             shared: list[str] = []
 
             source_ingredients = {ingredient.lower() for ingredient in source.ingredients}

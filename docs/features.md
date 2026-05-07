@@ -18,9 +18,27 @@
 - Shopping list purchase check-off that adds bought ingredients into pantry
 
 ### 3. Recipe Management
-- Save recipes with prep time, cook time, servings, and difficulty
-- Filter by time, skill level, and dietary preference
-- Mark family favorites and repeatable weekly recipes
+
+#### Data Ownership Model: Hybrid
+Recipes follow a three-layer ownership model:
+
+| Layer | Ownership | Description |
+|---|---|---|
+| Global catalog | Platform-owned | Curated starter recipes available to all users; read-only to users |
+| Account metadata | Account-scoped | Per-account data: favorites, ratings, last cooked date, usage frequency |
+| Custom recipes | Account-scoped | User-created or imported recipes; only visible to the owning account |
+
+- Global catalog is the source for all ingredient-aware suggestions and guided cooking
+- Account metadata drives personalization (favorites, planner recommendations, repeat meals)
+- Custom recipes are a Plus-tier feature; stored against the authenticated account (Cognito user ID)
+- No recipe data is shared across accounts in MVP (multi-household sharing is post-MVP)
+
+#### Features
+- Browse and filter the global recipe catalog (time, skill, dietary preference)
+- Mark global recipes as household favorites (stored as account metadata)
+- Mark recipes as repeatable weekly meals (stored as account metadata)
+- (Plus) Create, edit, and import custom recipes linked to the account
+- Recipe suggestions in planner use both global catalog and account-owned custom recipes
 
 ### 4. Guided Cooking
 - Step-by-step cooking mode with clear instruction progression

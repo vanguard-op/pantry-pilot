@@ -1,12 +1,12 @@
 from fastapi import APIRouter, Depends, Query, status
 
-from app.models import Difficulty, PantryCoverageResponse, Recipe, RecipeCreate, RecipeUpdate
+from app.models import Difficulty, PantryCoverageResponse, RecipeCreate, RecipePublic, RecipeUpdate
 from app.services.recipes_service import RecipesService
 
 router = APIRouter(prefix="/recipes", tags=["recipes"])
 
 
-@router.get("", response_model=list[Recipe])
+@router.get("", response_model=list[RecipePublic])
 def list_recipes(
     service: RecipesService = Depends(),
     search: str | None = None,
@@ -14,7 +14,7 @@ def list_recipes(
     skill: Difficulty | None = None,
     diet_tag: str | None = None,
     favorites_only: bool = False,
-) -> list[Recipe]:
+) -> list[RecipePublic]:
     return service.list_recipes(
         search=search,
         max_minutes=max_minutes,
@@ -24,22 +24,22 @@ def list_recipes(
     )
 
 
-@router.post("", response_model=Recipe, status_code=status.HTTP_201_CREATED)
-def create_recipe(payload: RecipeCreate, service: RecipesService = Depends()) -> Recipe:
+@router.post("", response_model=RecipePublic, status_code=status.HTTP_201_CREATED)
+def create_recipe(payload: RecipeCreate, service: RecipesService = Depends()) -> RecipePublic:
     return service.create_recipe(payload)
 
 
-@router.patch("/{recipe_id}", response_model=Recipe)
+@router.patch("/{recipe_id}", response_model=RecipePublic)
 def update_recipe(
     recipe_id: str,
     payload: RecipeUpdate,
     service: RecipesService = Depends(),
-) -> Recipe:
+) -> RecipePublic:
     return service.update_recipe(recipe_id, payload)
 
 
-@router.post("/{recipe_id}/favorite", response_model=Recipe)
-def toggle_favorite(recipe_id: str, service: RecipesService = Depends()) -> Recipe:
+@router.post("/{recipe_id}/favorite", response_model=RecipePublic)
+def toggle_favorite(recipe_id: str, service: RecipesService = Depends()) -> RecipePublic:
     return service.toggle_favorite(recipe_id)
 
 

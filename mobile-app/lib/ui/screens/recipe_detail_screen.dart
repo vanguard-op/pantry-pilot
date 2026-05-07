@@ -49,21 +49,22 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
         repo
             .fetchSubstitutionHints(coverage.missingIngredients)
             .then((hints) {
-          if (mounted) {
-            setState(() {
-              _substitutionHints = hints;
-              _substitutionsLoading = false;
-              _substitutionsError = false;
+              if (mounted) {
+                setState(() {
+                  _substitutionHints = hints;
+                  _substitutionsLoading = false;
+                  _substitutionsError = false;
+                });
+              }
+            })
+            .catchError((_) {
+              if (mounted) {
+                setState(() {
+                  _substitutionsLoading = false;
+                  _substitutionsError = true;
+                });
+              }
             });
-          }
-        }).catchError((_) {
-          if (mounted) {
-            setState(() {
-              _substitutionsLoading = false;
-              _substitutionsError = true;
-            });
-          }
-        });
       } else if (mounted) {
         setState(() {
           _substitutionsLoading = false;
@@ -109,7 +110,9 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
         actions: <Widget>[
           IconButton(
             onPressed: () {
-              context.read<RecipesBloc>().add(RecipeFavoriteToggled(widget.recipeId));
+              context.read<RecipesBloc>().add(
+                RecipeFavoriteToggled(widget.recipeId),
+              );
             },
             icon: Icon(
               recipe.isFavorite ? Icons.favorite : Icons.favorite_border,
@@ -147,6 +150,12 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                       _RecipeMetaChip(
                         icon: Icons.local_fire_department_outlined,
                         label: recipe.difficulty,
+                      ),
+                      _RecipeMetaChip(
+                        icon: recipe.isGlobal
+                            ? Icons.public
+                            : Icons.person_outline,
+                        label: recipe.ownershipLabel,
                       ),
                     ],
                   ),
@@ -242,21 +251,26 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                           ),
                           const SizedBox(height: AppPadding.md),
                           ...recipe!.ingredients.map((ingredient) {
-                            final available =
-                                availableSet.contains(ingredient.toLowerCase());
+                            final available = availableSet.contains(
+                              ingredient.toLowerCase(),
+                            );
                             return Container(
-                              margin:
-                                  const EdgeInsets.only(bottom: AppPadding.sm),
+                              margin: const EdgeInsets.only(
+                                bottom: AppPadding.sm,
+                              ),
                               padding: const EdgeInsets.symmetric(
                                 horizontal: AppPadding.md,
                                 vertical: AppPadding.sm,
                               ),
                               decoration: BoxDecoration(
                                 color: available
-                                    ? colorScheme.primaryContainer.withAlpha(120)
+                                    ? colorScheme.primaryContainer.withAlpha(
+                                        120,
+                                      )
                                     : colorScheme.surfaceContainerHighest,
-                                borderRadius:
-                                    BorderRadius.circular(AppRadius.md),
+                                borderRadius: BorderRadius.circular(
+                                  AppRadius.md,
+                                ),
                               ),
                               child: Row(
                                 children: <Widget>[
@@ -314,8 +328,11 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                               ),
                               const SizedBox(height: AppPadding.sm),
                               ...coverage.missingIngredients.map((ingredient) {
-                                final hasHint = _substitutionHints.containsKey(ingredient);
-                                final showSkeleton = _substitutionsLoading && !hasHint;
+                                final hasHint = _substitutionHints.containsKey(
+                                  ingredient,
+                                );
+                                final showSkeleton =
+                                    _substitutionsLoading && !hasHint;
                                 return Padding(
                                   padding: const EdgeInsets.only(
                                     bottom: AppPadding.sm,
@@ -325,8 +342,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                                         CrossAxisAlignment.start,
                                     children: <Widget>[
                                       Padding(
-                                        padding:
-                                            const EdgeInsets.only(top: 2),
+                                        padding: const EdgeInsets.only(top: 2),
                                         child: Icon(
                                           Icons.swap_horiz,
                                           size: 16,
@@ -470,7 +486,9 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                       final picked = await showDatePicker(
                         context: dialogContext,
                         initialDate: selectedDate,
-                        firstDate: DateTime.now().subtract(const Duration(days: 1)),
+                        firstDate: DateTime.now().subtract(
+                          const Duration(days: 1),
+                        ),
                         lastDate: DateTime.now().add(const Duration(days: 30)),
                       );
                       if (picked == null) {

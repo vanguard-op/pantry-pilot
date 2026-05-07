@@ -1,5 +1,7 @@
 import 'recipe_step.dart';
 
+enum RecipeOwnershipScope { global, custom }
+
 class Recipe {
   Recipe({
     required this.id,
@@ -13,6 +15,7 @@ class Recipe {
     required this.ingredients,
     required this.steps,
     required this.isFavorite,
+    required this.ownershipScope,
   });
 
   final String id;
@@ -37,6 +40,8 @@ class Recipe {
 
   final bool isFavorite;
 
+  final RecipeOwnershipScope ownershipScope;
+
   factory Recipe.fromMap(Map<String, dynamic> map) {
     final rawSteps = (map['steps'] as List<dynamic>? ?? const <dynamic>[])
         .whereType<Map>()
@@ -59,6 +64,7 @@ class Recipe {
           .toList(growable: false),
       steps: rawSteps.map(RecipeStep.fromMap).toList(growable: false),
       isFavorite: map['is_favorite'] as bool? ?? false,
+      ownershipScope: _ownershipScopeFromApi(map['ownership_scope'] as String?),
     );
   }
 
@@ -79,7 +85,11 @@ class Recipe {
 
   int get totalMinutes => prepMinutes + cookMinutes;
 
-  Recipe copyWith({bool? isFavorite}) {
+  bool get isGlobal => ownershipScope == RecipeOwnershipScope.global;
+
+  String get ownershipLabel => isGlobal ? 'Global' : 'Owned';
+
+  Recipe copyWith({bool? isFavorite, RecipeOwnershipScope? ownershipScope}) {
     return Recipe(
       id: id,
       title: title,
@@ -92,6 +102,18 @@ class Recipe {
       ingredients: ingredients,
       steps: steps,
       isFavorite: isFavorite ?? this.isFavorite,
+      ownershipScope: ownershipScope ?? this.ownershipScope,
     );
+  }
+
+  static RecipeOwnershipScope _ownershipScopeFromApi(String? value) {
+    switch (value) {
+      case 'global':
+        return RecipeOwnershipScope.global;
+      case 'custom':
+        return RecipeOwnershipScope.custom;
+      default:
+        return RecipeOwnershipScope.custom;
+    }
   }
 }

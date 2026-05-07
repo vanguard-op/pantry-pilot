@@ -56,6 +56,11 @@ class PantryItemUpdate(SQLModel):
     low_stock_threshold: Optional[float] = Field(default=None, ge=0)
 
 
+class RecipeOwnershipScope(str, Enum):
+    global_catalog = "global"
+    custom_account = "custom"
+
+
 class RecipeBase(SQLModel):
     title: str
     description: str
@@ -66,12 +71,12 @@ class RecipeBase(SQLModel):
     tags: List[str] = Field(default_factory=list, sa_column=Column(JSON))
     ingredients: List[str] = Field(default_factory=list, sa_column=Column(JSON))
     steps: List[Dict[str, Any]] = Field(default_factory=list, sa_column=Column(JSON))
-    is_favorite: bool = False
 
 
 class Recipe(RecipeBase, table=True):
     id: str = Field(default_factory=lambda: str(uuid4()), primary_key=True)
-    user_id: str = Field(index=True)
+    user_id: Optional[str] = Field(default=None, index=True)
+    ownership_scope: RecipeOwnershipScope = Field(default=RecipeOwnershipScope.custom_account)
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
@@ -90,7 +95,40 @@ class RecipeUpdate(SQLModel):
     tags: Optional[List[str]] = None
     ingredients: Optional[List[str]] = None
     steps: Optional[List[Dict[str, Any]]] = None
-    is_favorite: Optional[bool] = None
+
+
+class RecipePublic(SQLModel):
+    """API response schema for a recipe with per-account metadata overlaid.
+
+    Distinct from the ``Recipe`` table model so that ``is_favorite`` is never
+    persisted on the recipe row itself — it is always derived from
+    ``RecipeAccountMetadata`` for the requesting account.
+    """
+
+    id: str
+    title: str
+    description: str
+    prep_minutes: int
+    cook_minutes: int
+    servings: int
+    difficulty: Difficulty
+    tags: List[str]
+    ingredients: List[str]
+    steps: List[Dict[str, Any]]
+    ownership_scope: RecipeOwnershipScope
+    is_favorite: bool
+    created_at: datetime
+    updated_at: datetime
+
+
+class RecipeAccountMetadata(SQLModel, table=True):
+    user_id: str = Field(primary_key=True)
+    recipe_id: str = Field(primary_key=True)
+    is_favorite: bool = False
+    rating: Optional[int] = Field(default=None, ge=1, le=5)
+    last_cooked_at: Optional[datetime] = None
+    usage_count: int = Field(default=0, ge=0)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
 
 
 class PlannedMealBase(SQLModel):
@@ -131,7 +169,7 @@ class ShoppingListResponse(SQLModel):
 
 
 class RecipeRecommendation(SQLModel):
-    recipe: Recipe
+    recipe: RecipePublic
     score: int
     pantry_coverage: int
     matching_ingredients: List[str]
@@ -140,7 +178,7 @@ class RecipeRecommendation(SQLModel):
 
 
 class LeftoverSuggestion(SQLModel):
-    recipe: Recipe
+    recipe: RecipePublic
     source_recipe_title: str
     shared_ingredients: List[str]
     reason: str
@@ -148,8 +186,8 @@ class LeftoverSuggestion(SQLModel):
 
 class PlannerRecommendationsResponse(SQLModel):
     ranked: List[RecipeRecommendation]
-    favorites: List[Recipe]
-    repeats: List[Recipe]
+    favorites: List[RecipePublic]
+    repeats: List[RecipePublic]
 
 
 class DashboardRecommendationsResponse(SQLModel):
