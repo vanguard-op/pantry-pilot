@@ -34,7 +34,7 @@ class _GuidedCookingScreenState extends State<GuidedCookingScreen> {
   int _selectedRating = 0;
   bool _savedLeftovers = false;
   int _leftoverPortions = 1;
-  DateTime _leftoverConsumeBy = DateTime.now().add(const Duration(days: 2));
+  DateTime _leftoverConsumeBy = DateTime.now().add(const Duration(days: 3));
   final Map<String, double> _deductionAmounts = <String, double>{};
 
   @override

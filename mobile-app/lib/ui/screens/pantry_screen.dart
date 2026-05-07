@@ -15,6 +15,8 @@ class PantryScreen extends StatefulWidget {
 }
 
 class _PantryScreenState extends State<PantryScreen> {
+  static const _defaultCookedMealConsumeByDays = 3;
+
   static const _unitOptions = <String>[
     'pcs',
     'g',
@@ -171,7 +173,14 @@ class _PantryScreenState extends State<PantryScreen> {
         ? existingStorage!
         : _storageOptions.first;
     DateTime expiryDate =
-        existing?.expiryDate ?? DateTime.now().add(const Duration(days: 7));
+        existing?.expiryDate ??
+        DateTime.now().add(
+          Duration(
+            days: selectedItemKind == PantryItemKind.cookedMeal
+                ? _defaultCookedMealConsumeByDays
+                : 7,
+          ),
+        );
 
     final result = await showDialog<bool>(
       context: context,
@@ -209,11 +218,13 @@ class _PantryScreenState extends State<PantryScreen> {
                             ),
                           )
                           .toList(growable: false),
-                      onChanged: (value) {
-                        if (value != null) {
-                          setState(() => selectedUnit = value);
-                        }
-                      },
+                      onChanged: selectedItemKind == PantryItemKind.cookedMeal
+                          ? null
+                          : (value) {
+                              if (value != null) {
+                                setState(() => selectedUnit = value);
+                              }
+                            },
                     ),
                     DropdownButtonFormField<PantryItemKind>(
                       initialValue: selectedItemKind,
@@ -235,6 +246,13 @@ class _PantryScreenState extends State<PantryScreen> {
                             if (selectedItemKind == PantryItemKind.cookedMeal) {
                               selectedUnit = 'serving';
                               selectedStorage = 'Fridge';
+                              if (existing == null) {
+                                expiryDate = DateTime.now().add(
+                                  const Duration(
+                                    days: _defaultCookedMealConsumeByDays,
+                                  ),
+                                );
+                              }
                             }
                           });
                         }
