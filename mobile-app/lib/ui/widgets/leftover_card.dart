@@ -13,16 +13,12 @@ class LeftoverCard extends StatelessWidget {
   const LeftoverCard({
     super.key,
     required this.item,
-    required this.repurposeIdeas,
     required this.onMarkUsed,
     required this.onDiscard,
     required this.onRecipeTap,
   });
 
   final PantryItem item;
-
-  /// Repurpose recipe suggestions sourced from backend recommendations.
-  final List<LeftoverSuggestion> repurposeIdeas;
 
   final VoidCallback onMarkUsed;
   final VoidCallback onDiscard;
@@ -66,23 +62,6 @@ class LeftoverCard extends StatelessWidget {
                 color: colorScheme.onSurfaceVariant,
               ),
             ),
-            const SizedBox(height: AppPadding.sm),
-            if (repurposeIdeas.isEmpty)
-              Text(
-                'Repurpose idea: turn leftovers into wraps, bowls, or pasta add-ins.',
-                style: textTheme.bodySmall,
-              )
-            else
-              ...repurposeIdeas.map(
-                (idea) => ListTile(
-                  dense: true,
-                  contentPadding: EdgeInsets.zero,
-                  title: Text(idea.recipe.title),
-                  subtitle: Text(idea.reason),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: () => onRecipeTap(idea.recipe.id),
-                ),
-              ),
             const SizedBox(height: AppPadding.sm),
             Row(
               children: <Widget>[

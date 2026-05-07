@@ -133,14 +133,6 @@ class _WasteSummaryScreenState extends State<WasteSummaryScreen> {
                   (item) => LeftoverCard(
                     key: ValueKey(item.id),
                     item: item,
-                    repurposeIdeas: repurposeIdeas
-                        .where(
-                          (idea) =>
-                              idea.sourceRecipeTitle.toLowerCase().trim() ==
-                              item.name.trim().toLowerCase(),
-                        )
-                        .take(2)
-                        .toList(growable: false),
                     onMarkUsed: () => context.read<PantryBloc>().add(
                       PantryItemDeleted(item.id),
                     ),
