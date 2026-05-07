@@ -77,15 +77,15 @@ A confirmed weekly meal plan is saved. Missing ingredients are in the shopping l
 ## Flow 3: Guided Cooking
 
 ### Entry Trigger
-- User taps a scheduled meal in the planner ("Cook now")
+- User taps a scheduled meal in the planner ("Cook now"), which opens Recipe Detail first
 - User opens any recipe and taps "Start Cooking"
 
 ### Steps
-1. Pre-cook checklist
+1. Recipe readiness review in Recipe Detail
    - App shows required ingredients with pantry quantities
    - Flags any missing items with substitution suggestions
-   - User confirms readiness or swaps ingredients
-2. Cooking mode activates
+   - User resolves missing ingredients by substituting, swapping, or intentionally skipping
+2. Cooking mode activates after readiness is resolved
    - Step 1 of N displayed full-screen with clear action text
    - Each step shows: instruction, ingredient amounts involved, and estimated time
 3. Per-step timer (optional, user-triggered)
@@ -101,7 +101,7 @@ A confirmed weekly meal plan is saved. Missing ingredients are in the shopping l
    - User can confirm or adjust quantities before saving
 
 ### Key Decisions
-- If an ingredient is missing at pre-cook check, app offers: substitute, skip, or cancel
+- If an ingredient is missing in Recipe Detail readiness review, app offers: substitute, swap from pantry-backed options, skip intentionally, or cancel
 - Steps are scrollable if user prefers to read ahead
 - Screen stays on during cooking mode
 
