@@ -77,7 +77,7 @@ class SettingsRepository {
   }
 
   Future<void> logCookingSession(DateTime timestamp) async {
-    final dates = _readDateList('cooking_session_dates');
+    final dates = _readDateList('cooking_session_dates').toList();
     dates.add(timestamp);
     await _update(<String, dynamic>{
       'cooking_session_dates': dates
@@ -90,9 +90,9 @@ class SettingsRepository {
 
   int cookingSessionsInLastDays(int days) {
     final cutoff = DateTime.now().subtract(Duration(days: days));
-    return _readDateList('cooking_session_dates')
-        .where((date) => date.isAfter(cutoff))
-        .length;
+    return _readDateList(
+      'cooking_session_dates',
+    ).where((date) => date.isAfter(cutoff)).length;
   }
 
   List<DateTime> _readDateList(String key) {
