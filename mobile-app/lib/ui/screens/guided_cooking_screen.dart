@@ -32,6 +32,9 @@ class _GuidedCookingScreenState extends State<GuidedCookingScreen> {
   bool _pantryUpdateEnabled = true;
   bool _favoriteSelected = false;
   int _selectedRating = 0;
+  bool _savedLeftovers = false;
+  int _leftoverPortions = 1;
+  DateTime _leftoverConsumeBy = DateTime.now().add(const Duration(days: 2));
   final Map<String, double> _deductionAmounts = <String, double>{};
 
   @override
@@ -102,6 +105,18 @@ class _GuidedCookingScreenState extends State<GuidedCookingScreen> {
                 },
                 onDeductionChanged: (itemId, amount) {
                   setState(() => _deductionAmounts[itemId] = amount);
+                },
+                savedLeftovers: _savedLeftovers,
+                leftoverPortions: _leftoverPortions,
+                leftoverConsumeBy: _leftoverConsumeBy,
+                onSavedLeftoversChanged: (value) {
+                  setState(() => _savedLeftovers = value);
+                },
+                onLeftoverPortionsChanged: (value) {
+                  setState(() => _leftoverPortions = value);
+                },
+                onLeftoverConsumeByChanged: (value) {
+                  setState(() => _leftoverConsumeBy = value);
                 },
                 onFinish: () => _finishCooking(context, currentRecipe),
                 onReviewPantry: () => context.goNamed(AppRouter.pantryName),
@@ -211,6 +226,22 @@ class _GuidedCookingScreenState extends State<GuidedCookingScreen> {
     if (_pantryUpdateEnabled) {
       _applyPantryDeductions(context, recipe);
     }
+    if (_savedLeftovers && _leftoverPortions > 0) {
+      context.read<PantryBloc>().add(
+        PantryItemAdded(
+          PantryItem(
+            id: DateTime.now().microsecondsSinceEpoch.toString(),
+            name: recipe.title,
+            quantity: _leftoverPortions.toDouble(),
+            unit: 'serving',
+            storageLocation: 'Fridge',
+            itemKind: PantryItemKind.cookedMeal,
+            expiryDate: _leftoverConsumeBy,
+            lowStockThreshold: 1,
+          ),
+        ),
+      );
+    }
     if (widget.plannedMealId != null && widget.plannedMealId!.isNotEmpty) {
       context.read<PlannerBloc>().add(
         PlannedMealDeleted(widget.plannedMealId!),
@@ -283,6 +314,12 @@ class _CompletionView extends StatelessWidget {
     required this.onPantryUpdateChanged,
     required this.onRatingChanged,
     required this.onDeductionChanged,
+    required this.savedLeftovers,
+    required this.leftoverPortions,
+    required this.leftoverConsumeBy,
+    required this.onSavedLeftoversChanged,
+    required this.onLeftoverPortionsChanged,
+    required this.onLeftoverConsumeByChanged,
     required this.onFinish,
     required this.onReviewPantry,
   });
@@ -296,6 +333,12 @@ class _CompletionView extends StatelessWidget {
   final ValueChanged<bool> onPantryUpdateChanged;
   final ValueChanged<int> onRatingChanged;
   final void Function(String itemId, double amount) onDeductionChanged;
+  final bool savedLeftovers;
+  final int leftoverPortions;
+  final DateTime leftoverConsumeBy;
+  final ValueChanged<bool> onSavedLeftoversChanged;
+  final ValueChanged<int> onLeftoverPortionsChanged;
+  final ValueChanged<DateTime> onLeftoverConsumeByChanged;
   final VoidCallback onFinish;
   final VoidCallback onReviewPantry;
 
@@ -473,6 +516,90 @@ class _CompletionView extends StatelessWidget {
                         ),
                       );
                     }),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: AppPadding.md),
+          Card(
+            margin: EdgeInsets.zero,
+            child: Padding(
+              padding: const EdgeInsets.all(AppPadding.md),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text('Leftovers', style: textTheme.titleMedium),
+                  const SizedBox(height: AppPadding.xs),
+                  Text(
+                    'Did you save any leftovers?',
+                    style: textTheme.bodyMedium?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  SwitchListTile.adaptive(
+                    contentPadding: EdgeInsets.zero,
+                    value: savedLeftovers,
+                    onChanged: onSavedLeftoversChanged,
+                    title: const Text('Yes, add leftovers to pantry'),
+                  ),
+                  if (savedLeftovers) ...<Widget>[
+                    const SizedBox(height: AppPadding.xs),
+                    Text('Portions remaining', style: textTheme.labelLarge),
+                    Row(
+                      children: <Widget>[
+                        IconButton(
+                          onPressed: leftoverPortions > 1
+                              ? () => onLeftoverPortionsChanged(
+                                  leftoverPortions - 1,
+                                )
+                              : null,
+                          icon: const Icon(Icons.remove_circle_outline),
+                        ),
+                        Expanded(
+                          child: Text(
+                            '$leftoverPortions portion${leftoverPortions == 1 ? '' : 's'}',
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                        IconButton(
+                          onPressed: () =>
+                              onLeftoverPortionsChanged(leftoverPortions + 1),
+                          icon: const Icon(Icons.add_circle_outline),
+                        ),
+                      ],
+                    ),
+                    Row(
+                      children: <Widget>[
+                        const Text('Consume by:'),
+                        const SizedBox(width: AppPadding.sm),
+                        Text(
+                          leftoverConsumeBy
+                              .toLocal()
+                              .toString()
+                              .split(' ')
+                              .first,
+                          style: textTheme.bodyMedium,
+                        ),
+                        const Spacer(),
+                        TextButton(
+                          onPressed: () async {
+                            final picked = await showDatePicker(
+                              context: context,
+                              firstDate: DateTime.now(),
+                              lastDate: DateTime.now().add(
+                                const Duration(days: 14),
+                              ),
+                              initialDate: leftoverConsumeBy,
+                            );
+                            if (picked != null) {
+                              onLeftoverConsumeByChanged(picked);
+                            }
+                          },
+                          child: const Text('Choose'),
+                        ),
+                      ],
+                    ),
+                  ],
                 ],
               ),
             ),

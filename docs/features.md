@@ -8,6 +8,8 @@
 
 ### 1. Pantry Inventory
 - Add/edit/remove ingredients with quantity, unit, and storage location
+- Store leftovers as pantry Cooked Meals (separate from ingredient inventory) with portion/serving count and consume-by date
+- Cooked Meals can be created automatically from Meal Completion leftover logging and manually from Pantry Add Item
 - Expiry date tracking with "use soon" surfacing
 - Low-stock flagging for restock planning
 
@@ -15,7 +17,7 @@
 - Weekly planner with drag-and-drop meals
 - Ingredient-aware meal suggestions based on pantry contents
 - Auto-generated shopping additions for missing ingredients
-- Shopping list purchase check-off that adds bought ingredients into pantry
+- Shopping list purchase check-off that adds bought ingredients into pantry ingredient stock only (not Cooked Meals/leftovers)
 
 ### 3. Recipe Management
 
@@ -47,11 +49,11 @@ Recipes follow a three-layer ownership model:
 
 ### 5. Waste Reduction Nudges
 - "Cook this first" queue for near-expiry ingredients
-- Leftover logging on Meal Completion Screen: prompt to record remaining portions after every guided cook session
-- Leftover-based recipe suggestions surfaced in the Waste Reduction screen
+- Leftover logging on Meal Completion Screen: prompt to record remaining portions as pantry Cooked Meals after every guided cook session
+- Leftover-based suggestions surfaced from pantry Cooked Meals in the Waste Reduction screen
 - Weekly waste-reduction summary
 
-> **Post-MVP**: Manual leftover entry from the Waste Reduction screen for meals cooked outside the app
+> **Post-MVP**: Manual cooked-meal/leftover entry from the Waste Reduction screen for meals cooked outside the app
 
 ## Post-MVP Features
 - Multi-user household roles and permissions

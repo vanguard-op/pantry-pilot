@@ -27,11 +27,17 @@ class FeedbackStatus(str, Enum):
     resolved = "resolved"
 
 
+class PantryItemKind(str, Enum):
+    ingredient = "ingredient"
+    cooked_meal = "cooked_meal"
+
+
 class PantryItemBase(SQLModel):
     name: str
     quantity: float = Field(gt=0)
     unit: str = "pcs"
     storage_location: str = "Pantry"
+    item_kind: PantryItemKind = PantryItemKind.ingredient
     expiry_date: Optional[date] = None
     low_stock_threshold: float = Field(default=1, ge=0)
 
@@ -52,6 +58,7 @@ class PantryItemUpdate(SQLModel):
     quantity: Optional[float] = Field(default=None, gt=0)
     unit: Optional[str] = None
     storage_location: Optional[str] = None
+    item_kind: Optional[PantryItemKind] = None
     expiry_date: Optional[date] = None
     low_stock_threshold: Optional[float] = Field(default=None, ge=0)
 

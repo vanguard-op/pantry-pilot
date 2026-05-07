@@ -56,7 +56,8 @@ All screens are listed below, grouped by flow. Each entry includes the screen na
 - **Purpose**: Show auto-generated list of missing ingredients for the planned week
 - **Content**: Grouped ingredient list (by category), quantity, checkboxes
 - **Actions**: Check off items, mark item as "Bought", confirm bought quantity, add custom items, remove items, share/export list, "Add Bought Items to Pantry"
-- **Navigates to**: Pantry (to cross-reference and purchase sync), Weekly Planner
+- **Note**: Shopping List sync updates pantry ingredients only; leftovers/Cooked Meals cannot be created from this screen
+- **Navigates to**: Pantry (to cross-reference and ingredient purchase sync), Weekly Planner
 
 ---
 
@@ -86,9 +87,9 @@ All screens are listed below, grouped by flow. Each entry includes the screen na
 
 ### 12. Meal Completion Screen
 - **Purpose**: Mark the meal done, collect quick feedback, update pantry, and log leftovers
-- **Content**: Completion message, star rating prompt, "Save as Favorite" toggle, leftover prompt ("Did you save any leftovers?"), portions input, pantry deduction summary
-- **Actions**: Rate recipe, toggle favorite, set leftover portions (yes/no + quantity), confirm or adjust pantry deductions, "Done"
-- **Note**: Logged leftovers are stored against the meal and appear in the Waste Reduction screen immediately
+- **Content**: Completion message, star rating prompt, "Save as Favorite" toggle, leftover prompt ("Did you save any leftovers?"), portions/servings input, consume-by date input, pantry deduction summary
+- **Actions**: Rate recipe, toggle favorite, set leftover portions/servings, set consume-by date, confirm or adjust pantry deductions, "Done"
+- **Note**: Logged leftovers are stored in pantry under Cooked Meals and appear in the Waste Reduction screen immediately
 - **Navigates to**: Home Dashboard, Pantry (if deductions need review)
 
 ---
@@ -97,14 +98,15 @@ All screens are listed below, grouped by flow. Each entry includes the screen na
 
 ### 13. Pantry Screen
 - **Purpose**: Full view and management of household inventory
-- **Content**: Items grouped by storage (fridge, freezer, pantry shelf), Use Soon section at top
-- **Actions**: Tap item to edit, swipe to delete, "Add Item", tap use-soon item for recipe suggestions
+- **Content**: Ingredients grouped by storage (fridge, freezer, pantry shelf), Cooked Meals section (leftovers), Use Soon section at top
+- **Actions**: Tap item to edit, swipe to delete, "Add Item" (ingredient or cooked meal), tap use-soon ingredient for recipe suggestions, tap cooked meal for repurpose/eat-soon suggestions
+- **Note**: Cooked Meals may be auto-created from Meal Completion leftover logging or added manually via Add Item
 - **Navigates to**: Add/Edit Item Screen, Recipe Search (filtered by ingredient)
 
 ### 14. Add / Edit Item Screen
 - **Purpose**: Create or update a pantry item
-- **Content**: Name, quantity, unit, storage location, expiry date fields
-- **Actions**: Fill fields, save, cancel
+- **Content**: Item type selector (Ingredient or Cooked Meal), name, quantity/servings, storage location, expiry/consume-by date fields
+- **Actions**: Select item type, fill fields, save, cancel
 - **Navigates to**: Pantry Screen
 
 ---
@@ -113,8 +115,8 @@ All screens are listed below, grouped by flow. Each entry includes the screen na
 
 ### 15. Waste Reduction Screen
 - **Purpose**: Surface actionable steps to use near-expiry items and leftovers
-- **Content**: Use Soon list (sorted by urgency), Leftovers list, recipe suggestions per item
-- **Actions**: Tap item for recipe ideas, log leftover used, mark item as discarded, "Plan these meals"
+- **Content**: Use Soon list (sorted by urgency), Leftovers list sourced from pantry Cooked Meals, recipe/repurpose suggestions per item
+- **Actions**: Tap ingredient for recipe ideas, tap cooked meal for repurpose ideas, mark leftover portions used, mark item as discarded, "Plan these meals"
 - **Navigates to**: Recipe Detail, Weekly Planner, Pantry
 
 ### 16. Weekly Waste Summary Screen

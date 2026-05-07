@@ -5,6 +5,7 @@ from sqlmodel import select
 from app.api.deps import SessionDep, UserIdDep
 from app.models import (
     DashboardRecommendationsResponse,
+    PantryItemKind,
     LeftoverSuggestion,
     PantryItem,
     PlannedMeal,
@@ -54,7 +55,7 @@ class RecommendationService:
         )
         use_soon = [item for item in ranked if item.use_soon_ingredients][:4]
 
-        leftovers = self._leftover_suggestions(recipes=recipes, planned_meals=planned_meals)
+        leftovers = self._leftover_suggestions(recipes=recipes, pantry_items=pantry_items)
         return DashboardRecommendationsResponse(use_soon=use_soon, leftovers=leftovers)
 
     def _list_recipes(self) -> list[RecipePublic]:
@@ -178,19 +179,31 @@ class RecommendationService:
     def _leftover_suggestions(
         self,
         recipes: list[RecipePublic],
-        planned_meals: list[PlannedMeal],
+        pantry_items: list[PantryItem],
     ) -> list[LeftoverSuggestion]:
-        recipe_by_id = {recipe.id: recipe for recipe in recipes}
-        recent_cutoff = date.today() - timedelta(days=3)
-        recent_meals = [meal for meal in planned_meals if meal.date >= recent_cutoff]
-        recent_meals.sort(key=lambda meal: meal.date, reverse=True)
+        cooked_meals = [
+            item
+            for item in pantry_items
+            if item.item_kind == PantryItemKind.cooked_meal
+        ]
+        cooked_meals.sort(
+            key=lambda item: item.expiry_date or date.max,
+        )
 
         suggestions: list[LeftoverSuggestion] = []
         used_recipe_ids: set[str] = set()
 
-        for meal in recent_meals:
-            source = recipe_by_id.get(meal.recipe_id)
+        for cooked_meal in cooked_meals:
+            source_title = cooked_meal.name.strip()
+            if not source_title:
+                continue
+
+            source = next(
+                (recipe for recipe in recipes if recipe.title.strip().lower() == source_title.lower()),
+                None,
+            )
             if source is None:
+                # Manual cooked-meal entries may not map to a known recipe.
                 continue
 
             best_match: RecipePublic | None = None
@@ -219,9 +232,9 @@ class RecommendationService:
             suggestions.append(
                 LeftoverSuggestion(
                     recipe=best_match,
-                    source_recipe_title=source.title,
+                    source_recipe_title=source_title,
                     shared_ingredients=shared,
-                    reason=f"Reuse ingredients from {source.title}{reason_suffix}",
+                    reason=f"Repurpose leftovers from {source_title}{reason_suffix}",
                 )
             )
 

@@ -60,7 +60,8 @@ User lands on the home dashboard with a partially or fully seeded pantry and opt
 6. User marks purchased items after shopping
    - Check off items as "Bought"
    - Confirm quantity actually purchased
-   - Bought items are added to pantry stock
+   - Bought items are added to pantry ingredient stock only
+   - Leftovers/Cooked Meals are never added through shopping list sync
 7. User confirms plan → saved to planner
 
 ### Key Decisions
@@ -70,7 +71,7 @@ User lands on the home dashboard with a partially or fully seeded pantry and opt
 - Bought item sync updates pantry before cooking guidance checks
 
 ### Exit State
-A confirmed weekly meal plan is saved. Missing ingredients are in the shopping list, and bought items can be synced into pantry stock. User returns to the home dashboard with the plan visible.
+A confirmed weekly meal plan is saved. Missing ingredients are in the shopping list, and bought items can be synced into pantry ingredient stock (not Cooked Meals/leftovers). User returns to the home dashboard with the plan visible.
 
 ---
 
@@ -97,7 +98,7 @@ A confirmed weekly meal plan is saved. Missing ingredients are in the shopping l
    - Prompt: rate the recipe (quick 1–5 stars)
    - Option: log it as a household favorite
    - Leftover prompt: "Did you save any leftovers?" → user sets approximate portions remaining
-   - Logged leftovers are stored against the meal and surface immediately in the Waste Reduction screen
+   - Logged leftovers are stored in pantry as Cooked Meals (servings/portions + consume-by date) and surface immediately in the Waste Reduction screen
 6. Pantry auto-update
    - Used ingredients are deducted from inventory
    - User can confirm or adjust quantities before saving
@@ -121,9 +122,13 @@ Meal is marked complete in the planner. Inventory is updated. Recipe optionally 
 - User taps "Add Bought Items to Pantry" from Shopping List
 
 ### Steps
-1. Pantry screen shows all items grouped by storage (fridge, freezer, pantry shelf)
+1. Pantry screen shows two sections:
+   - Ingredients grouped by storage (fridge, freezer, pantry shelf)
+   - Cooked Meals (leftovers) grouped by consume-by urgency
 2. Add items
-   - Manual entry: name, quantity, unit, expiry date, storage location
+   - Manual ingredient entry: name, quantity, unit, expiry date, storage location
+   - Manual cooked-meal entry (leftovers): meal name, portions/servings, consume-by date, storage location
+   - Cooked Meals are also auto-created from Meal Completion when user logs leftovers
    - Quick-add from common item list or recent history
    - (Post-MVP) Barcode scan or receipt import
 3. Edit items
@@ -131,8 +136,9 @@ Meal is marked complete in the planner. Inventory is updated. Recipe optionally 
 4. Remove items
    - Swipe to delete or mark as "used up"
 5. Expiry alerts
-   - Items expiring within 3 days surface in a "Use Soon" section at the top
-   - Tapping a use-soon item suggests recipes that use it
+   - Ingredients and Cooked Meals expiring within 3 days surface in a "Use Soon" section at the top
+   - Tapping a use-soon ingredient suggests recipes that use it
+   - Tapping a use-soon cooked meal suggests repurpose or eat-soon options
 6. Low-stock detection
    - Items below a set threshold flagged for restock
    - One-tap add to shopping list
@@ -157,13 +163,13 @@ Pantry reflects current household stock. Expiry alerts and low-stock items are v
 ### Steps
 1. Waste Reduction screen shows two sections:
    - **Use Soon**: ingredients expiring within 3 days, sorted by urgency
-   - **Leftovers**: meals recently cooked with remaining portions logged
+   - **Leftovers**: pantry Cooked Meals with remaining portions, sorted by consume-by date
 2. For each use-soon ingredient, the app surfaces:
    - Recipes that primarily use that ingredient
    - Quick-use ideas (e.g., "Add spinach to scrambled eggs")
-3. For leftover meals (logged from the Meal Completion Screen):
+3. For leftover meals (logged from the Meal Completion Screen into pantry Cooked Meals):
    - Suggestions for how to repurpose them (e.g., "Turn yesterday's chicken into a wrap")
-   - User can mark leftover portions as used or discard them
+   - User can mark leftover portions as used or discard them, which updates pantry Cooked Meals
 4. Weekly waste summary (Friday prompt)
    - Shows items used before expiry vs. discarded
    - Highlights streaks ("You wasted nothing this week!")

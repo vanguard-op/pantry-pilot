@@ -6,6 +6,7 @@ from app.api.deps import SessionDep, UserIdDep
 from app.models import (
     BoughtItem,
     PantryItem,
+    PantryItemKind,
     PlannedMeal,
     Recipe,
     RecipeOwnershipScope,
@@ -86,6 +87,7 @@ class ShoppingService:
                 quantity=bought.quantity,
                 unit="pcs",
                 storage_location="Pantry",
+                item_kind=PantryItemKind.ingredient,
                 expiry_date=None,
                 low_stock_threshold=1,
             )

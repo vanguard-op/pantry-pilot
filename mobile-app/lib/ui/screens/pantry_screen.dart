@@ -24,6 +24,7 @@ class _PantryScreenState extends State<PantryScreen> {
     'pack',
     'can',
     'bottle',
+    'serving',
   ];
 
   static const _storageOptions = <String>['Fridge', 'Freezer', 'Pantry shelf'];
@@ -164,6 +165,8 @@ class _PantryScreenState extends State<PantryScreen> {
     final existingStorage = existing == null
         ? null
         : _canonicalStorage(existing.storageLocation);
+    PantryItemKind selectedItemKind =
+        existing?.itemKind ?? PantryItemKind.ingredient;
     String selectedStorage = _storageOptions.contains(existingStorage)
         ? existingStorage!
         : _storageOptions.first;
@@ -212,6 +215,31 @@ class _PantryScreenState extends State<PantryScreen> {
                         }
                       },
                     ),
+                    DropdownButtonFormField<PantryItemKind>(
+                      initialValue: selectedItemKind,
+                      decoration: const InputDecoration(labelText: 'Type'),
+                      items: const <DropdownMenuItem<PantryItemKind>>[
+                        DropdownMenuItem<PantryItemKind>(
+                          value: PantryItemKind.ingredient,
+                          child: Text('Ingredient'),
+                        ),
+                        DropdownMenuItem<PantryItemKind>(
+                          value: PantryItemKind.cookedMeal,
+                          child: Text('Cooked meal (leftover)'),
+                        ),
+                      ],
+                      onChanged: (value) {
+                        if (value != null) {
+                          setState(() {
+                            selectedItemKind = value;
+                            if (selectedItemKind == PantryItemKind.cookedMeal) {
+                              selectedUnit = 'serving';
+                              selectedStorage = 'Fridge';
+                            }
+                          });
+                        }
+                      },
+                    ),
                     DropdownButtonFormField<String>(
                       initialValue: selectedStorage,
                       decoration: const InputDecoration(
@@ -234,7 +262,11 @@ class _PantryScreenState extends State<PantryScreen> {
                     const SizedBox(height: AppPadding.sm),
                     Row(
                       children: <Widget>[
-                        const Text('Expiry:'),
+                        Text(
+                          selectedItemKind == PantryItemKind.cookedMeal
+                              ? 'Consume by:'
+                              : 'Expiry:',
+                        ),
                         const SizedBox(width: AppPadding.sm),
                         Text(expiryDate.toLocal().toString().split(' ').first),
                         const Spacer(),
@@ -292,6 +324,7 @@ class _PantryScreenState extends State<PantryScreen> {
       quantity: parsedQuantity,
       unit: selectedUnit,
       storageLocation: selectedStorage,
+      itemKind: selectedItemKind,
       expiryDate: expiryDate,
       lowStockThreshold: 1,
     );
