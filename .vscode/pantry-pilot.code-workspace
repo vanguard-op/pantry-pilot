@@ -2,7 +2,25 @@
 	"folders": [
 		{
 			"path": ".."
-		}
+		},
+		{
+			"path": "../.github"
+		},
+		{
+			"path": "../.vscode"
+		},
+		{
+			"path": "../backend"
+		},
+		{
+			"path": "../mobile-app"
+		},
+		{
+			"path": "../infra"
+		},
+		{
+			"path": "../docs"
+		},
 	],
 	"settings": {
 		"terminal.integrated.env.windows": {

@@ -1,6 +1,7 @@
 import 'package:bloc/bloc.dart';
 import 'package:equatable/equatable.dart';
 
+import '../core/async_state.dart';
 import '../../data/repositories/auth_repository.dart';
 
 part 'auth_event.dart';
@@ -21,12 +22,29 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     AuthCheckRequested event,
     Emitter<AuthState> emit,
   ) async {
-    emit(const AuthState.loading());
-    final authenticated = await _authRepository.isAuthenticated();
     emit(
-      authenticated
-          ? const AuthState.authenticated()
-          : const AuthState.unauthenticated(),
+      state.copyWith(
+        status: AuthStatus.loading,
+        requestStatus: LoadingStatus<void>(actionKey: event.actionKey),
+      ),
+    );
+
+    final authenticated = await _authRepository.isAuthenticated();
+    final nextStatus = authenticated
+        ? AuthStatus.authenticated
+        : AuthStatus.unauthenticated;
+
+    emit(
+      state.copyWith(
+        status: nextStatus,
+        requestStatus: SuccessStatus<void>(actionKey: event.actionKey),
+      ),
+    );
+    emit(
+      state.copyWith(
+        status: nextStatus,
+        requestStatus: IdleStatus<void>(actionKey: event.actionKey),
+      ),
     );
   }
 
@@ -34,16 +52,40 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     AuthSignInRequested event,
     Emitter<AuthState> emit,
   ) async {
-    emit(const AuthState.loading());
-    final success = await _authRepository.signIn();
     emit(
-      success
-          ? const AuthState.authenticated()
-          : AuthState.unauthenticated(
-              errorMessage:
-                  _authRepository.lastError ??
-                  'Could not sign in. Please try again.',
-            ),
+      state.copyWith(
+        status: AuthStatus.loading,
+        requestStatus: LoadingStatus<void>(actionKey: event.actionKey),
+      ),
+    );
+
+    final success = await _authRepository.signIn();
+    if (success) {
+      emit(
+        state.copyWith(
+          status: AuthStatus.authenticated,
+          requestStatus: SuccessStatus<void>(actionKey: event.actionKey),
+        ),
+      );
+      emit(
+        state.copyWith(
+          status: AuthStatus.authenticated,
+          requestStatus: IdleStatus<void>(actionKey: event.actionKey),
+        ),
+      );
+      return;
+    }
+
+    emit(
+      state.copyWith(
+        status: AuthStatus.unauthenticated,
+        requestStatus: ErrorStatus<void>(
+          message:
+              _authRepository.lastError ??
+              'Could not sign in. Please try again.',
+          actionKey: event.actionKey,
+        ),
+      ),
     );
   }
 
@@ -51,8 +93,24 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     AuthSignOutRequested event,
     Emitter<AuthState> emit,
   ) async {
-    emit(const AuthState.loading());
+    emit(
+      state.copyWith(
+        status: AuthStatus.loading,
+        requestStatus: LoadingStatus<void>(actionKey: event.actionKey),
+      ),
+    );
     await _authRepository.signOut();
-    emit(const AuthState.unauthenticated());
+    emit(
+      state.copyWith(
+        status: AuthStatus.unauthenticated,
+        requestStatus: SuccessStatus<void>(actionKey: event.actionKey),
+      ),
+    );
+    emit(
+      state.copyWith(
+        status: AuthStatus.unauthenticated,
+        requestStatus: IdleStatus<void>(actionKey: event.actionKey),
+      ),
+    );
   }
 }

@@ -53,6 +53,8 @@ class ApiClient {
         connectTimeout: const Duration(seconds: 10),
         receiveTimeout: const Duration(seconds: 30),
         headers: <String, String>{'Accept': 'application/json'},
+        // Handle non-2xx statuses ourselves so we can raise domain exceptions.
+        validateStatus: (_) => true,
       ),
     );
   }
@@ -70,10 +72,14 @@ class ApiClient {
     String path, {
     Map<String, String>? queryParameters,
   }) async {
-    final response = await _dio.get<dynamic>(
-      path,
-      queryParameters: queryParameters,
-      options: await _options(withCache: true),
+    final response = await _safeRequest(
+      method: 'GET',
+      path: path,
+      run: () async => _dio.get<dynamic>(
+        path,
+        queryParameters: queryParameters,
+        options: await _options(withCache: true),
+      ),
     );
     final data = response.data;
     if (data is List<dynamic>) {
@@ -86,10 +92,14 @@ class ApiClient {
     String path, {
     Map<String, String>? queryParameters,
   }) async {
-    final response = await _dio.get<dynamic>(
-      path,
-      queryParameters: queryParameters,
-      options: await _options(withCache: true),
+    final response = await _safeRequest(
+      method: 'GET',
+      path: path,
+      run: () async => _dio.get<dynamic>(
+        path,
+        queryParameters: queryParameters,
+        options: await _options(withCache: true),
+      ),
     );
     return _asObject(response.data, path);
   }
@@ -98,19 +108,27 @@ class ApiClient {
     String path, {
     required Object body,
   }) async {
-    final response = await _dio.post<dynamic>(
-      path,
-      data: body,
-      options: await _options(withBody: true),
+    final response = await _safeRequest(
+      method: 'POST',
+      path: path,
+      run: () async => _dio.post<dynamic>(
+        path,
+        data: body,
+        options: await _options(withBody: true),
+      ),
     );
     return _asObject(response.data, path);
   }
 
   Future<List<dynamic>> postList(String path, {required Object body}) async {
-    final response = await _dio.post<dynamic>(
-      path,
-      data: body,
-      options: await _options(withBody: true),
+    final response = await _safeRequest(
+      method: 'POST',
+      path: path,
+      run: () async => _dio.post<dynamic>(
+        path,
+        data: body,
+        options: await _options(withBody: true),
+      ),
     );
     final data = response.data;
     if (data is List<dynamic>) {
@@ -123,10 +141,14 @@ class ApiClient {
     String path, {
     required Object body,
   }) async {
-    final response = await _dio.patch<dynamic>(
-      path,
-      data: body,
-      options: await _options(withBody: true),
+    final response = await _safeRequest(
+      method: 'PATCH',
+      path: path,
+      run: () async => _dio.patch<dynamic>(
+        path,
+        data: body,
+        options: await _options(withBody: true),
+      ),
     );
     return _asObject(response.data, path);
   }
@@ -135,16 +157,49 @@ class ApiClient {
     String path, {
     required Object body,
   }) async {
-    final response = await _dio.put<dynamic>(
-      path,
-      data: body,
-      options: await _options(withBody: true),
+    final response = await _safeRequest(
+      method: 'PUT',
+      path: path,
+      run: () async => _dio.put<dynamic>(
+        path,
+        data: body,
+        options: await _options(withBody: true),
+      ),
     );
     return _asObject(response.data, path);
   }
 
   Future<void> delete(String path) async {
-    await _dio.delete<dynamic>(path, options: await _options());
+    await _safeRequest(
+      method: 'DELETE',
+      path: path,
+      run: () async => _dio.delete<dynamic>(path, options: await _options()),
+    );
+  }
+
+  Future<Response<dynamic>> _safeRequest({
+    required String method,
+    required String path,
+    required Future<Response<dynamic>> Function() run,
+  }) async {
+    try {
+      final response = await run();
+      final statusCode = response.statusCode ?? 0;
+      if (statusCode < 200 || statusCode >= 300) {
+        throw ApiException.fromResponse(
+          method: method,
+          path: path,
+          response: response,
+        );
+      }
+      return response;
+    } on DioException catch (error) {
+      throw ApiException.fromDioException(
+        method: method,
+        path: path,
+        error: error,
+      );
+    }
   }
 
   /// Builds per-request [Options].
@@ -223,7 +278,58 @@ class ApiConfig {
 class ApiException implements Exception {
   const ApiException(this.message);
 
+  factory ApiException.fromResponse({
+    required String method,
+    required String path,
+    required Response<dynamic> response,
+  }) {
+    final statusCode = response.statusCode ?? 0;
+    final detail = _extractDetail(response.data);
+
+    if (statusCode == 401) {
+      final suffix = (detail != null && detail.isNotEmpty)
+          ? ' Details: $detail'
+          : '';
+      return ApiException(
+        'Unauthorized ($method $path). Sign in again and verify Cognito configuration.$suffix',
+      );
+    }
+
+    final suffix = (detail != null && detail.isNotEmpty)
+        ? ' Details: $detail'
+        : '';
+    return ApiException(
+      'Request failed with HTTP $statusCode ($method $path).$suffix',
+    );
+  }
+
+  factory ApiException.fromDioException({
+    required String method,
+    required String path,
+    required DioException error,
+  }) {
+    return ApiException(
+      'Network error while calling $method $path: ${error.message ?? 'unknown error'}',
+    );
+  }
+
   final String message;
+
+  static String? _extractDetail(dynamic responseData) {
+    if (responseData is Map) {
+      final detail = responseData['detail']?.toString();
+      if (detail != null && detail.isNotEmpty) {
+        return detail;
+      }
+      return null;
+    }
+
+    if (responseData is String && responseData.isNotEmpty) {
+      return responseData;
+    }
+
+    return null;
+  }
 
   @override
   String toString() => message;

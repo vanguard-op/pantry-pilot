@@ -1,7 +1,10 @@
 part of 'onboarding_bloc.dart';
 
-sealed class OnboardingEvent extends Equatable {
+sealed class OnboardingEvent extends Equatable implements ActionTrackedEvent {
   const OnboardingEvent();
+
+  @override
+  String? get actionKey => null;
 
   @override
   List<Object?> get props => <Object?>[];
@@ -9,6 +12,9 @@ sealed class OnboardingEvent extends Equatable {
 
 class OnboardingStarted extends OnboardingEvent {
   const OnboardingStarted();
+
+  @override
+  String get actionKey => 'onboarding.started';
 }
 
 class OnboardingSubmitted extends OnboardingEvent {
@@ -23,6 +29,9 @@ class OnboardingSubmitted extends OnboardingEvent {
   final String skillLevel;
   final String dietaryNotes;
   final List<String> staples;
+
+  @override
+  String get actionKey => 'onboarding.submitted';
 
   @override
   List<Object?> get props => <Object?>[

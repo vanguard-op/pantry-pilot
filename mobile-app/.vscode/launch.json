@@ -8,6 +8,7 @@
             "name": "mobile-app",
             "request": "launch",
             "type": "dart",
+            "noDebug": true,
             "args": [
                 "--dart-define-from-file=.env"
             ]

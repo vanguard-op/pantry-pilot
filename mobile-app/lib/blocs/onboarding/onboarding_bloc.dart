@@ -1,6 +1,7 @@
 import 'package:bloc/bloc.dart';
 import 'package:equatable/equatable.dart';
 
+import '../core/async_state.dart';
 import '../../data/models/pantry_item.dart';
 import '../../data/repositories/pantry_repository.dart';
 import '../../data/repositories/settings_repository.dart';
@@ -27,6 +28,7 @@ class OnboardingBloc extends Bloc<OnboardingEvent, OnboardingState> {
       state.copyWith(
         status: OnboardingStatus.ready,
         completed: _settingsRepository.onboardingComplete,
+        requestStatus: IdleStatus<void>(actionKey: event.actionKey),
       ),
     );
   }
@@ -35,35 +37,67 @@ class OnboardingBloc extends Bloc<OnboardingEvent, OnboardingState> {
     OnboardingSubmitted event,
     Emitter<OnboardingState> emit,
   ) async {
-    emit(state.copyWith(status: OnboardingStatus.saving));
-
-    await _settingsRepository.saveHouseholdProfile(
-      size: event.householdSize,
-      skillLevel: event.skillLevel,
-      dietaryNotes: event.dietaryNotes,
+    emit(
+      state.copyWith(
+        requestStatus: LoadingStatus<void>(actionKey: event.actionKey),
+      ),
     );
 
-    if (event.staples.isNotEmpty) {
-      final now = DateTime.now();
-      final staples = <PantryItem>[];
-      for (var i = 0; i < event.staples.length; i += 1) {
-        staples.add(
-          PantryItem(
-            id: 'staple_${event.staples[i]}_$i',
-            name: event.staples[i],
-            quantity: 1,
-            unit: 'pack',
-            storageLocation: 'Pantry',
-            expiryDate: now.add(const Duration(days: 30)),
-            lowStockThreshold: 1,
+    var failed = false;
+    try {
+      await _settingsRepository.saveHouseholdProfile(
+        size: event.householdSize,
+        skillLevel: event.skillLevel,
+        dietaryNotes: event.dietaryNotes,
+      );
+
+      if (event.staples.isNotEmpty) {
+        final now = DateTime.now();
+        final staples = <PantryItem>[];
+        for (var i = 0; i < event.staples.length; i += 1) {
+          staples.add(
+            PantryItem(
+              id: 'staple_${event.staples[i]}_$i',
+              name: event.staples[i],
+              quantity: 1,
+              unit: 'pack',
+              storageLocation: 'Pantry',
+              expiryDate: now.add(const Duration(days: 30)),
+              lowStockThreshold: 1,
+            ),
+          );
+        }
+        await _pantryRepository.upsertAll(staples);
+      }
+
+      await _settingsRepository.setOnboardingComplete(true);
+
+      emit(
+        state.copyWith(
+          status: OnboardingStatus.ready,
+          completed: true,
+          requestStatus: SuccessStatus<void>(actionKey: event.actionKey),
+        ),
+      );
+    } catch (error) {
+      failed = true;
+      emit(
+        state.copyWith(
+          requestStatus: ErrorStatus<void>(
+            message: 'Unable to finish onboarding right now.',
+            actionKey: event.actionKey,
+            cause: error,
+          ),
+        ),
+      );
+    } finally {
+      if (!failed) {
+        emit(
+          state.copyWith(
+            requestStatus: IdleStatus<void>(actionKey: event.actionKey),
           ),
         );
       }
-      await _pantryRepository.upsertAll(staples);
     }
-
-    await _settingsRepository.setOnboardingComplete(true);
-
-    emit(state.copyWith(status: OnboardingStatus.ready, completed: true));
   }
 }

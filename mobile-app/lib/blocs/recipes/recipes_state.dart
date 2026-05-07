@@ -1,12 +1,13 @@
 part of 'recipes_bloc.dart';
 
-class RecipesState extends Equatable {
+class RecipesState extends AsyncState {
   const RecipesState({
     this.recipes = const <Recipe>[],
     this.searchTerm = '',
     this.maxMinutesFilter,
     this.skillFilter,
     this.dietFilter,
+    super.requestStatus,
   });
 
   final List<Recipe> recipes;
@@ -17,23 +18,28 @@ class RecipesState extends Equatable {
 
   List<Recipe> get filteredRecipes {
     final q = searchTerm.toLowerCase();
-    final filtered = recipes.where((recipe) {
-      final matchesSearch =
-          q.isEmpty ||
-          recipe.title.toLowerCase().contains(q) ||
-          recipe.ingredients.any(
-            (ingredient) => ingredient.toLowerCase().contains(q),
-          );
-      final matchesTime =
-          maxMinutesFilter == null || recipe.totalMinutes <= maxMinutesFilter!;
-      final matchesSkill =
-          skillFilter == null || recipe.difficulty == skillFilter;
-      final matchesDiet =
-          dietFilter == null ||
-          recipe.tags.any((tag) => tag.toLowerCase() == dietFilter!.toLowerCase());
+    final filtered = recipes
+        .where((recipe) {
+          final matchesSearch =
+              q.isEmpty ||
+              recipe.title.toLowerCase().contains(q) ||
+              recipe.ingredients.any(
+                (ingredient) => ingredient.toLowerCase().contains(q),
+              );
+          final matchesTime =
+              maxMinutesFilter == null ||
+              recipe.totalMinutes <= maxMinutesFilter!;
+          final matchesSkill =
+              skillFilter == null || recipe.difficulty == skillFilter;
+          final matchesDiet =
+              dietFilter == null ||
+              recipe.tags.any(
+                (tag) => tag.toLowerCase() == dietFilter!.toLowerCase(),
+              );
 
-      return matchesSearch && matchesTime && matchesSkill && matchesDiet;
-    }).toList(growable: true);
+          return matchesSearch && matchesTime && matchesSkill && matchesDiet;
+        })
+        .toList(growable: true);
 
     filtered.sort((left, right) {
       if (left.isFavorite != right.isFavorite) {
@@ -51,6 +57,7 @@ class RecipesState extends Equatable {
     int? maxMinutesFilter,
     String? skillFilter,
     String? dietFilter,
+    Status<void>? requestStatus,
     bool clearMaxMinutesFilter = false,
     bool clearSkillFilter = false,
     bool clearDietFilter = false,
@@ -63,6 +70,7 @@ class RecipesState extends Equatable {
           : (maxMinutesFilter ?? this.maxMinutesFilter),
       skillFilter: clearSkillFilter ? null : (skillFilter ?? this.skillFilter),
       dietFilter: clearDietFilter ? null : (dietFilter ?? this.dietFilter),
+      requestStatus: requestStatus ?? this.requestStatus,
     );
   }
 
@@ -73,5 +81,6 @@ class RecipesState extends Equatable {
     maxMinutesFilter,
     skillFilter,
     dietFilter,
+    ...asyncProps,
   ];
 }

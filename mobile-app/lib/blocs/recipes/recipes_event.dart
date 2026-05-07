@@ -1,7 +1,10 @@
 part of 'recipes_bloc.dart';
 
-sealed class RecipesEvent extends Equatable {
+sealed class RecipesEvent extends Equatable implements ActionTrackedEvent {
   const RecipesEvent();
+
+  @override
+  String? get actionKey => null;
 
   @override
   List<Object?> get props => <Object?>[];
@@ -9,6 +12,9 @@ sealed class RecipesEvent extends Equatable {
 
 class RecipesStarted extends RecipesEvent {
   const RecipesStarted();
+
+  @override
+  String get actionKey => 'recipes.started';
 }
 
 class RecipesChanged extends RecipesEvent {
@@ -62,5 +68,21 @@ class RecipeFavoriteToggled extends RecipesEvent {
   final String recipeId;
 
   @override
+  String get actionKey => 'recipes.favoriteToggled';
+
+  @override
   List<Object?> get props => <Object?>[recipeId];
+}
+
+class RecipesRequestFailed extends RecipesEvent {
+  const RecipesRequestFailed(this.message, {this.sourceActionKey});
+
+  final String message;
+  final String? sourceActionKey;
+
+  @override
+  String? get actionKey => sourceActionKey;
+
+  @override
+  List<Object?> get props => <Object?>[message, sourceActionKey];
 }

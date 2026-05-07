@@ -1,7 +1,10 @@
 part of 'planner_bloc.dart';
 
-sealed class PlannerEvent extends Equatable {
+sealed class PlannerEvent extends Equatable implements ActionTrackedEvent {
   const PlannerEvent();
+
+  @override
+  String? get actionKey => null;
 
   @override
   List<Object?> get props => <Object?>[];
@@ -9,6 +12,9 @@ sealed class PlannerEvent extends Equatable {
 
 class PlannerStarted extends PlannerEvent {
   const PlannerStarted();
+
+  @override
+  String get actionKey => 'planner.started';
 }
 
 class PlannerMealsChanged extends PlannerEvent {
@@ -26,6 +32,9 @@ class PlannedMealAdded extends PlannerEvent {
   final PlannedMeal meal;
 
   @override
+  String get actionKey => 'planner.mealAdded';
+
+  @override
   List<Object?> get props => <Object?>[meal];
 }
 
@@ -35,5 +44,21 @@ class PlannedMealDeleted extends PlannerEvent {
   final String id;
 
   @override
+  String get actionKey => 'planner.mealDeleted';
+
+  @override
   List<Object?> get props => <Object?>[id];
+}
+
+class PlannerRequestFailed extends PlannerEvent {
+  const PlannerRequestFailed(this.message, {this.sourceActionKey});
+
+  final String message;
+  final String? sourceActionKey;
+
+  @override
+  String? get actionKey => sourceActionKey;
+
+  @override
+  List<Object?> get props => <Object?>[message, sourceActionKey];
 }

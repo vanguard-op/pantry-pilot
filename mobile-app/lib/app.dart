@@ -75,73 +75,82 @@ class PantryPilotApp extends StatelessWidget {
           ),
           BlocProvider<PantryBloc>(
             create: (context) =>
-                PantryBloc(pantryRepository: context.read<PantryRepository>())
-                  ..add(const PantryStarted()),
+                PantryBloc(pantryRepository: context.read<PantryRepository>()),
           ),
           BlocProvider<PlannerBloc>(
             create: (context) => PlannerBloc(
               plannerRepository: context.read<PlannerRepository>(),
-            )..add(const PlannerStarted()),
+            ),
           ),
           BlocProvider<RecipesBloc>(
             create: (context) =>
-                RecipesBloc(recipeRepository: context.read<RecipeRepository>())
-                  ..add(const RecipesStarted()),
+                RecipesBloc(recipeRepository: context.read<RecipeRepository>()),
           ),
         ],
-        child: BlocListener<PantryBloc, PantryState>(
-          listener: (context, pantryState) {
-            final settings = context.read<SettingsRepository>();
-            context.read<NotificationService>().syncReminders(
-              pantryItems: pantryState.items,
-              plannedMeals: context.read<PlannerBloc>().state.meals,
-              recipes: context.read<RecipesBloc>().state.recipes,
-              expiryThresholdDays: settings.expiryThresholdDays,
-              expiryAlertsEnabled: settings.expiryNotificationsEnabled,
-              mealRemindersEnabled: settings.mealReminderNotificationsEnabled,
-            );
+        child: BlocListener<AuthBloc, AuthState>(
+          listenWhen: (previous, current) {
+            return !previous.isAuthenticated && current.isAuthenticated;
           },
-          child: BlocListener<PlannerBloc, PlannerState>(
-            listenWhen: (previous, current) {
-              return previous.meals.length != current.meals.length;
-            },
-            listener: (context, plannerState) {
+          listener: (context, state) {
+            context.read<PantryBloc>().add(const PantryStarted());
+            context.read<PlannerBloc>().add(const PlannerStarted());
+            context.read<RecipesBloc>().add(const RecipesStarted());
+          },
+          child: BlocListener<PantryBloc, PantryState>(
+            listener: (context, pantryState) {
               final settings = context.read<SettingsRepository>();
               context.read<NotificationService>().syncReminders(
-                pantryItems: context.read<PantryBloc>().state.items,
-                plannedMeals: plannerState.meals,
+                pantryItems: pantryState.items,
+                plannedMeals: context.read<PlannerBloc>().state.meals,
                 recipes: context.read<RecipesBloc>().state.recipes,
                 expiryThresholdDays: settings.expiryThresholdDays,
                 expiryAlertsEnabled: settings.expiryNotificationsEnabled,
                 mealRemindersEnabled: settings.mealReminderNotificationsEnabled,
               );
-
-              if (plannerState.meals.isNotEmpty) {
-                context
-                    .read<SettingsRepository>()
-                    .setFirstPlanCreatedAtIfAbsent(DateTime.now());
-              }
             },
-            child: BlocListener<RecipesBloc, RecipesState>(
-              listener: (context, recipesState) {
+            child: BlocListener<PlannerBloc, PlannerState>(
+              listenWhen: (previous, current) {
+                return previous.meals.length != current.meals.length;
+              },
+              listener: (context, plannerState) {
                 final settings = context.read<SettingsRepository>();
                 context.read<NotificationService>().syncReminders(
                   pantryItems: context.read<PantryBloc>().state.items,
-                  plannedMeals: context.read<PlannerBloc>().state.meals,
-                  recipes: recipesState.recipes,
+                  plannedMeals: plannerState.meals,
+                  recipes: context.read<RecipesBloc>().state.recipes,
                   expiryThresholdDays: settings.expiryThresholdDays,
                   expiryAlertsEnabled: settings.expiryNotificationsEnabled,
                   mealRemindersEnabled:
                       settings.mealReminderNotificationsEnabled,
                 );
+
+                if (plannerState.meals.isNotEmpty) {
+                  context
+                      .read<SettingsRepository>()
+                      .setFirstPlanCreatedAtIfAbsent(DateTime.now());
+                }
               },
-              child: MaterialApp.router(
-                title: 'PantryPilot',
-                debugShowCheckedModeBanner: false,
-                theme: AppTheme.lightTheme,
-                darkTheme: AppTheme.darkTheme,
-                themeMode: ThemeMode.system,
-                routerConfig: AppRouter.appRouter,
+              child: BlocListener<RecipesBloc, RecipesState>(
+                listener: (context, recipesState) {
+                  final settings = context.read<SettingsRepository>();
+                  context.read<NotificationService>().syncReminders(
+                    pantryItems: context.read<PantryBloc>().state.items,
+                    plannedMeals: context.read<PlannerBloc>().state.meals,
+                    recipes: recipesState.recipes,
+                    expiryThresholdDays: settings.expiryThresholdDays,
+                    expiryAlertsEnabled: settings.expiryNotificationsEnabled,
+                    mealRemindersEnabled:
+                        settings.mealReminderNotificationsEnabled,
+                  );
+                },
+                child: MaterialApp.router(
+                  title: 'PantryPilot',
+                  debugShowCheckedModeBanner: false,
+                  theme: AppTheme.lightTheme,
+                  darkTheme: AppTheme.darkTheme,
+                  themeMode: ThemeMode.system,
+                  routerConfig: AppRouter.appRouter,
+                ),
               ),
             ),
           ),

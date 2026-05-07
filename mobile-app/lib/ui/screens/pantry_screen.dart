@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../blocs/core/async_state.dart';
 import '../../blocs/pantry/pantry_bloc.dart';
 import '../../data/models/pantry_item.dart';
 import '../../theme/app_theme.dart';
+import '../widgets/api_status_banner.dart';
 
 class PantryScreen extends StatelessWidget {
   const PantryScreen({super.key});
@@ -28,37 +30,85 @@ class PantryScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final items = context.watch<PantryBloc>().state.items;
+    final state = context.watch<PantryBloc>().state;
+    final items = state.items;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Pantry Inventory')),
-      body: items.isEmpty
-          ? const Center(
-              child: Text('No pantry items yet. Add your first item.'),
-            )
-          : ListView.builder(
-              padding: const EdgeInsets.only(bottom: 80),
-              itemCount: items.length,
-              itemBuilder: (context, index) {
-                final item = items[index];
-                return Card(
-                  child: ListTile(
-                    title: Text(item.name),
-                    subtitle: Text(
-                      '${item.quantity} ${item.unit} - ${item.storageLocation}\nExpires: ${item.expiryDate.toLocal().toString().split(' ').first}',
+      body: BlocListener<PantryBloc, PantryState>(
+        listenWhen: (previous, current) {
+          final status = current.requestStatus;
+          return status is SuccessStatus<void> &&
+              previous.requestStatus != current.requestStatus;
+        },
+        listener: (context, current) {
+          final status = current.requestStatus;
+          if (status is! SuccessStatus<void>) {
+            return;
+          }
+
+          final message = switch (status.actionKey) {
+            'pantry.itemAdded' => 'Pantry item added',
+            'pantry.itemUpdated' => 'Pantry item updated',
+            'pantry.itemDeleted' => 'Pantry item removed',
+            'pantry.refreshed' => 'Pantry refreshed',
+            _ => null,
+          };
+          if (message == null) {
+            return;
+          }
+
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text(message)));
+        },
+        child: Column(
+          children: <Widget>[
+            if (state.hasError)
+              Padding(
+                padding: const EdgeInsets.all(AppPadding.md),
+                child: ApiStatusBanner(
+                  message: state.errorMessage ?? 'Could not load pantry data',
+                  subtitle: 'You can keep using the app and retry any time.',
+                  onRetry: () =>
+                      context.read<PantryBloc>().add(const PantryRefreshed()),
+                ),
+              ),
+            Expanded(
+              child: state.isLoading && items.isEmpty
+                  ? const Center(child: CircularProgressIndicator())
+                  : items.isEmpty
+                  ? const Center(
+                      child: Text('No pantry items yet. Add your first item.'),
+                    )
+                  : ListView.builder(
+                      padding: const EdgeInsets.only(bottom: 80),
+                      itemCount: items.length,
+                      itemBuilder: (context, index) {
+                        final item = items[index];
+                        return Card(
+                          child: ListTile(
+                            title: Text(item.name),
+                            subtitle: Text(
+                              '${item.quantity} ${item.unit} - ${item.storageLocation}\nExpires: ${item.expiryDate.toLocal().toString().split(' ').first}',
+                            ),
+                            isThreeLine: true,
+                            trailing: IconButton(
+                              icon: const Icon(Icons.delete_outline),
+                              onPressed: () => context.read<PantryBloc>().add(
+                                PantryItemDeleted(item.id),
+                              ),
+                            ),
+                            onTap: () =>
+                                _showPantryEditor(context, existing: item),
+                          ),
+                        );
+                      },
                     ),
-                    isThreeLine: true,
-                    trailing: IconButton(
-                      icon: const Icon(Icons.delete_outline),
-                      onPressed: () => context.read<PantryBloc>().add(
-                        PantryItemDeleted(item.id),
-                      ),
-                    ),
-                    onTap: () => _showPantryEditor(context, existing: item),
-                  ),
-                );
-              },
             ),
+          ],
+        ),
+      ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _showPantryEditor(context),
         icon: const Icon(Icons.add),

@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../blocs/onboarding/onboarding_bloc.dart';
 import '../../navigation/app_router.dart';
 import '../../theme/app_theme.dart';
+import '../widgets/api_status_banner.dart';
 
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
@@ -15,12 +16,9 @@ class OnboardingScreen extends StatefulWidget {
 
 class _OnboardingScreenState extends State<OnboardingScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _emailController = TextEditingController();
-  final _passwordController = TextEditingController();
   final _dietaryController = TextEditingController();
 
   _OnboardingStep _step = _OnboardingStep.welcome;
-  _AccountMode _accountMode = _AccountMode.guest;
   int _householdSize = 2;
   String _skillLevel = 'Beginner';
   bool _nudgeToPlanner = true;
@@ -42,8 +40,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   @override
   void dispose() {
-    _emailController.dispose();
-    _passwordController.dispose();
     _dietaryController.dispose();
     super.dispose();
   }
@@ -69,9 +65,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           actions: <Widget>[
             if (_step != _OnboardingStep.welcome)
               TextButton(
-                onPressed: state.status == OnboardingStatus.saving
-                    ? null
-                    : () => _handleBackStep(),
+                onPressed: state.isLoading ? null : () => _handleBackStep(),
                 child: const Text('Back'),
               ),
           ],
@@ -93,18 +87,24 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     OnboardingState state,
   ) {
     final progress = switch (_step) {
-      _OnboardingStep.welcome => 0.25,
-      _OnboardingStep.account => 0.5,
-      _OnboardingStep.profile => 0.75,
+      _OnboardingStep.welcome => 0.33,
+      _OnboardingStep.profile => 0.66,
       _OnboardingStep.pantrySeed => 1.0,
     };
 
     return <Widget>[
       LinearProgressIndicator(value: progress),
+      if (state.hasError) ...<Widget>[
+        const SizedBox(height: AppPadding.md),
+        ApiStatusBanner(
+          message:
+              state.errorMessage ?? 'Unable to finish onboarding right now.',
+          subtitle: 'Please try again.',
+        ),
+      ],
       const SizedBox(height: AppPadding.md),
       ...switch (_step) {
         _OnboardingStep.welcome => _buildWelcomeStep(textTheme),
-        _OnboardingStep.account => _buildAccountStep(textTheme),
         _OnboardingStep.profile => _buildProfileStep(textTheme),
         _OnboardingStep.pantrySeed => _buildPantrySeedStep(textTheme, state),
       },
@@ -116,7 +116,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       Text('Run your kitchen smarter', style: textTheme.headlineMedium),
       const SizedBox(height: AppPadding.sm),
       Text(
-        'PantryPilot keeps inventory, plans meals, and guided cooking in one flow so you waste less and decide faster.',
+        'You are signed in. Next, we will personalize your household so PantryPilot can recommend better plans and recipes.',
         style: textTheme.bodyLarge,
       ),
       const SizedBox(height: AppPadding.md),
@@ -137,75 +137,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       ),
       const SizedBox(height: AppPadding.lg),
       FilledButton(
-        onPressed: () => setState(() => _step = _OnboardingStep.account),
-        child: const Text('Get started'),
-      ),
-    ];
-  }
-
-  List<Widget> _buildAccountStep(TextTheme textTheme) {
-    return <Widget>[
-      Text('Account setup', style: textTheme.headlineMedium),
-      const SizedBox(height: AppPadding.sm),
-      Text(
-        'Choose how you want to continue. You can always update this later.',
-        style: textTheme.bodyLarge,
-      ),
-      const SizedBox(height: AppPadding.md),
-      SegmentedButton<_AccountMode>(
-        segments: const <ButtonSegment<_AccountMode>>[
-          ButtonSegment<_AccountMode>(
-            value: _AccountMode.guest,
-            label: Text('Guest'),
-            icon: Icon(Icons.person_outline),
-          ),
-          ButtonSegment<_AccountMode>(
-            value: _AccountMode.email,
-            label: Text('Email'),
-            icon: Icon(Icons.email_outlined),
-          ),
-          ButtonSegment<_AccountMode>(
-            value: _AccountMode.social,
-            label: Text('Social'),
-            icon: Icon(Icons.login),
-          ),
-        ],
-        selected: <_AccountMode>{_accountMode},
-        onSelectionChanged: (selection) {
-          setState(() => _accountMode = selection.first);
-        },
-      ),
-      const SizedBox(height: AppPadding.md),
-      if (_accountMode == _AccountMode.email) ...<Widget>[
-        TextFormField(
-          controller: _emailController,
-          keyboardType: TextInputType.emailAddress,
-          decoration: const InputDecoration(labelText: 'Email'),
-        ),
-        const SizedBox(height: AppPadding.sm),
-        TextFormField(
-          controller: _passwordController,
-          obscureText: true,
-          decoration: const InputDecoration(labelText: 'Password'),
-        ),
-      ] else if (_accountMode == _AccountMode.social) ...<Widget>[
-        Card(
-          margin: EdgeInsets.zero,
-          child: Padding(
-            padding: const EdgeInsets.all(AppPadding.md),
-            child: Text(
-              'Social sign-in providers will be connected in a post-MVP auth pass. Continue to personalize your household now.',
-              style: textTheme.bodyMedium,
-            ),
-          ),
-        ),
-      ],
-      const SizedBox(height: AppPadding.lg),
-      FilledButton(
         onPressed: () => setState(() => _step = _OnboardingStep.profile),
-        child: Text(
-          _accountMode == _AccountMode.guest ? 'Continue as guest' : 'Continue',
-        ),
+        child: const Text('Continue'),
       ),
     ];
   }
@@ -305,7 +238,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         children: <Widget>[
           Expanded(
             child: OutlinedButton(
-              onPressed: state.status == OnboardingStatus.saving
+              onPressed: state.isLoading
                   ? null
                   : _submitOnboardingWithoutStaples,
               child: const Text('Skip for now'),
@@ -314,14 +247,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           const SizedBox(width: AppPadding.sm),
           Expanded(
             child: FilledButton(
-              onPressed: state.status == OnboardingStatus.saving
-                  ? null
-                  : _submitOnboarding,
-              child: Text(
-                state.status == OnboardingStatus.saving
-                    ? 'Saving...'
-                    : 'Finish setup',
-              ),
+              onPressed: state.isLoading ? null : _submitOnboarding,
+              child: Text(state.isLoading ? 'Saving...' : 'Finish setup'),
             ),
           ),
         ],
@@ -333,8 +260,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     setState(() {
       _step = switch (_step) {
         _OnboardingStep.welcome => _OnboardingStep.welcome,
-        _OnboardingStep.account => _OnboardingStep.welcome,
-        _OnboardingStep.profile => _OnboardingStep.account,
+        _OnboardingStep.profile => _OnboardingStep.welcome,
         _OnboardingStep.pantrySeed => _OnboardingStep.profile,
       };
     });
@@ -363,6 +289,4 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   }
 }
 
-enum _OnboardingStep { welcome, account, profile, pantrySeed }
-
-enum _AccountMode { guest, email, social }
+enum _OnboardingStep { welcome, profile, pantrySeed }

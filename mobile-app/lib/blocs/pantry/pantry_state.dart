@@ -1,7 +1,7 @@
 part of 'pantry_bloc.dart';
 
-class PantryState extends Equatable {
-  const PantryState({this.items = const <PantryItem>[]});
+class PantryState extends AsyncState {
+  const PantryState({this.items = const <PantryItem>[], super.requestStatus});
 
   final List<PantryItem> items;
 
@@ -13,10 +13,13 @@ class PantryState extends Equatable {
       ..sort((a, b) => a.expiryDate.compareTo(b.expiryDate));
   }
 
-  PantryState copyWith({List<PantryItem>? items}) {
-    return PantryState(items: items ?? this.items);
+  PantryState copyWith({List<PantryItem>? items, Status<void>? requestStatus}) {
+    return PantryState(
+      items: items ?? this.items,
+      requestStatus: requestStatus ?? this.requestStatus,
+    );
   }
 
   @override
-  List<Object?> get props => <Object?>[items];
+  List<Object?> get props => <Object?>[items, ...asyncProps];
 }

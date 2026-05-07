@@ -13,6 +13,33 @@ import 'data/repositories/settings_repository.dart';
 import 'data/repositories/shopping_repository.dart';
 import 'services/notification_service.dart';
 
+bool _isStartupUnauthorized(Object error) {
+  if (error is! ApiException) {
+    return false;
+  }
+  return error.message.startsWith('Unauthorized (');
+}
+
+Future<void> _runInitializer(String name, Future<void> Function() run) async {
+  try {
+    await run();
+  } catch (error, stackTrace) {
+    if (_isStartupUnauthorized(error)) {
+      debugPrint('Startup preload skipped for $name: $error');
+      return;
+    }
+
+    FlutterError.reportError(
+      FlutterErrorDetails(
+        exception: error,
+        stack: stackTrace,
+        library: 'pantry_pilot.main',
+        context: ErrorDescription('while initializing $name'),
+      ),
+    );
+  }
+}
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final authRepository = AuthRepository();
@@ -32,12 +59,12 @@ Future<void> main() async {
   );
 
   await Future.wait(<Future<void>>[
-    settingsRepository.initialize(),
-    pantryRepository.initialize(),
-    plannerRepository.initialize(),
-    recipeRepository.initialize(),
-    feedbackRepository.initialize(),
-    notificationService.initialize(),
+    _runInitializer('settingsRepository', settingsRepository.initialize),
+    _runInitializer('pantryRepository', pantryRepository.initialize),
+    _runInitializer('plannerRepository', plannerRepository.initialize),
+    _runInitializer('recipeRepository', recipeRepository.initialize),
+    _runInitializer('feedbackRepository', feedbackRepository.initialize),
+    _runInitializer('notificationService', notificationService.initialize),
   ]);
 
   runApp(

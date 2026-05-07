@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../blocs/core/async_state.dart';
 import '../../blocs/pantry/pantry_bloc.dart';
 import '../../blocs/planner/planner_bloc.dart';
 import '../../blocs/recipes/recipes_bloc.dart';
@@ -45,6 +46,8 @@ class _PlannerScreenState extends State<PlannerScreen> {
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
     final plannerState = context.watch<PlannerBloc>().state;
+    final pantryState = context.watch<PantryBloc>().state;
+    final recipesState = context.watch<RecipesBloc>().state;
     final recipes = context.watch<RecipesBloc>().state.recipes;
 
     final next7Days = List<DateTime>.generate(
@@ -54,6 +57,32 @@ class _PlannerScreenState extends State<PlannerScreen> {
 
     return MultiBlocListener(
       listeners: <BlocListener<dynamic, dynamic>>[
+        BlocListener<PlannerBloc, PlannerState>(
+          listenWhen: (previous, current) {
+            final status = current.requestStatus;
+            return status is SuccessStatus<void> &&
+                previous.requestStatus != current.requestStatus;
+          },
+          listener: (context, state) {
+            final status = state.requestStatus;
+            if (status is! SuccessStatus<void>) {
+              return;
+            }
+
+            final message = switch (status.actionKey) {
+              'planner.mealAdded' => 'Meal added to planner',
+              'planner.mealDeleted' => 'Meal removed from planner',
+              _ => null,
+            };
+            if (message == null) {
+              return;
+            }
+
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(SnackBar(content: Text(message)));
+          },
+        ),
         BlocListener<PlannerBloc, PlannerState>(
           listenWhen: (previous, current) => previous.meals != current.meals,
           listener: (context, state) => _refreshRecommendations(),
@@ -96,6 +125,35 @@ class _PlannerScreenState extends State<PlannerScreen> {
             return ListView(
               padding: const EdgeInsets.all(AppPadding.md),
               children: <Widget>[
+                if (plannerState.hasError)
+                  ApiStatusBanner(
+                    message:
+                        plannerState.errorMessage ??
+                        'Could not load planner data',
+                    subtitle: 'Planner updates may be delayed until retry.',
+                    onRetry: () =>
+                        context.read<PlannerBloc>().add(const PlannerStarted()),
+                  ),
+                if (pantryState.hasError)
+                  ApiStatusBanner(
+                    message:
+                        pantryState.errorMessage ??
+                        'Could not sync pantry data',
+                    subtitle:
+                        'Recommendations may be stale until pantry sync succeeds.',
+                    onRetry: () =>
+                        context.read<PantryBloc>().add(const PantryRefreshed()),
+                  ),
+                if (recipesState.hasError)
+                  ApiStatusBanner(
+                    message:
+                        recipesState.errorMessage ??
+                        'Could not refresh recipes',
+                    subtitle:
+                        'Recipe-based planning suggestions may be incomplete.',
+                    onRetry: () =>
+                        context.read<RecipesBloc>().add(const RecipesStarted()),
+                  ),
                 if (snapshot.hasError)
                   ApiStatusBanner(
                     message: 'Could not refresh recommendations',

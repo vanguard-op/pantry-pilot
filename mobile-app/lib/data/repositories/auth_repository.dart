@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:amplify_auth_cognito/amplify_auth_cognito.dart';
 import 'package:amplify_flutter/amplify_flutter.dart';
+import 'package:flutter/foundation.dart';
 
 /// Configuration constants for Cognito OAuth2 / PKCE flow.
 ///
@@ -37,6 +38,10 @@ class CognitoConfig {
   static const scopes = <String>['openid', 'email', 'profile'];
 
   static bool get hasRequiredValues {
+    debugPrint(
+      'CognitoConfig: clientId=$clientId, userPoolId=$userPoolId, '
+      'region=$region, hostedUiDomain=$hostedUiDomain',
+    );
     return clientId != 'REPLACE_ME' &&
         userPoolId != 'REPLACE_ME' &&
         region.isNotEmpty;
