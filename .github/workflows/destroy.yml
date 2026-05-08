@@ -21,7 +21,7 @@ jobs:
           role-session-name: "github-actions"
           aws-region: "${{ vars.AWS_REGION }}"
       - name: "Terraform destroy"
-        working-directory: "infra/environments/prod"
+        working-directory: "infra"
         run: |
           terraform init
           terraform destroy -auto-approve

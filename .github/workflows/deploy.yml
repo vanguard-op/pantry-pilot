@@ -26,7 +26,7 @@ jobs:
           role-session-name: "github-actions"
           aws-region: "${{ vars.AWS_REGION }}"
       - name: "Terraform deploy"
-        working-directory: "infra/environments/prod"
+        working-directory: "infra"
         run: |
           terraform init
           terraform apply -auto-approve
