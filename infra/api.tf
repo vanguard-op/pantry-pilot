@@ -61,7 +61,6 @@ module "api_handler" {
   environment_variables = {
     APP_ENV                         = var.environment
     ALLOWED_ORIGINS                 = "*"
-    AWS_REGION                      = data.aws_region.current.region
     DATABASE_NAME                   = aws_rds_cluster.pantry.database_name
     DATABASE_USER                   = aws_rds_cluster.pantry.master_username
     DATABASE_HOST                   = aws_rds_cluster.pantry.endpoint
@@ -146,7 +145,6 @@ module "db_migrator" {
 
   environment_variables = {
     APP_ENV             = var.environment
-    AWS_REGION          = data.aws_region.current.region
     DATABASE_NAME       = aws_rds_cluster.pantry.database_name
     DATABASE_USER       = aws_rds_cluster.pantry.master_username
     DATABASE_HOST       = aws_rds_cluster.pantry.endpoint
