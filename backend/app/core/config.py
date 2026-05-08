@@ -1,5 +1,8 @@
+import importlib
+import json
 from functools import lru_cache
 from typing import Any, List
+from urllib.parse import quote_plus
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -9,10 +12,17 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 
     app_env: str = Field(default="dev", alias="APP_ENV")
-    database_url: str = Field(
-        default="postgresql+psycopg://pantry_user:pantry_pass@localhost:5432/pantry_pilot",
+    database_url_override: str = Field(
+        default="",
         alias="DATABASE_URL",
     )
+    database_name: str = Field(default="pantry_pilot", alias="DATABASE_NAME")
+    database_user: str = Field(default="pantry_user", alias="DATABASE_USER")
+    database_password: str = Field(default="pantry_pass", alias="DATABASE_PASSWORD")
+    database_host: str = Field(default="localhost", alias="DATABASE_HOST")
+    database_port: int = Field(default=5432, alias="DATABASE_PORT")
+    database_secret_arn: str = Field(default="", alias="DATABASE_SECRET_ARN")
+    aws_region: str = Field(default="", alias="AWS_REGION")
     allowed_origins: str = Field(default="*", alias="ALLOWED_ORIGINS")
 
     # Cognito — left empty by default so local dev can use the X-User-Id fallback.
@@ -25,6 +35,40 @@ class Settings(BaseSettings):
     @property
     def allowed_origins_list(self) -> List[str]:
         return [value.strip() for value in self.allowed_origins.split(",") if value.strip()]
+
+    @property
+    def database_url(self) -> str:
+        """Build SQLAlchemy database URL from env vars and optional secret."""
+        if self.database_url_override:
+            return self.database_url_override
+
+        encoded_user = quote_plus(self.database_user)
+        encoded_password = quote_plus(self._resolved_database_password)
+        return (
+            f"postgresql+psycopg://{encoded_user}:{encoded_password}"
+            f"@{self.database_host}:{self.database_port}/{self.database_name}"
+        )
+
+    @property
+    def _resolved_database_password(self) -> str:
+        if not self.database_secret_arn:
+            return self.database_password
+
+        boto3 = importlib.import_module("boto3")
+        client = boto3.client(
+            "secretsmanager",
+            region_name=self.aws_region or None,
+        )
+        secret_value = client.get_secret_value(SecretId=self.database_secret_arn)
+        secret_string = secret_value.get("SecretString")
+        if not secret_string:
+            raise ValueError("DATABASE_SECRET_ARN did not return SecretString")
+
+        payload = json.loads(secret_string)
+        password = payload.get("password")
+        if not password:
+            raise ValueError("Secrets Manager payload missing 'password'")
+        return str(password)
 
     @property
     def cognito_enabled(self) -> bool:

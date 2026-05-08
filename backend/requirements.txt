@@ -1,5 +1,6 @@
 fastapi
 uvicorn[standard]
+mangum
 sqlmodel
 psycopg[binary]
 python-dotenv
@@ -7,3 +8,4 @@ pydantic-settings
 alembic
 python-jose[cryptography]
 httpx
+boto3

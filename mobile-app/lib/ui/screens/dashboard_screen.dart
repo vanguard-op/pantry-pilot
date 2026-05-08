@@ -2,12 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../blocs/auth/auth_bloc.dart';
 import '../../blocs/pantry/pantry_bloc.dart';
 import '../../blocs/planner/planner_bloc.dart';
 import '../../blocs/recipes/recipes_bloc.dart';
 import '../../data/models/pantry_item.dart';
 import '../../data/models/recommendations.dart';
 import '../../data/models/recipe.dart';
+import '../../data/repositories/auth_repository.dart';
 import '../../data/repositories/recommendation_repository.dart';
 import '../../navigation/app_router.dart';
 import '../../theme/app_theme.dart';
@@ -22,12 +24,15 @@ class DashboardScreen extends StatefulWidget {
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   late Future<DashboardRecommendations> _recommendationsFuture;
+  late Future<AuthUserProfile?> _profileFuture;
 
   @override
   void initState() {
     super.initState();
     _recommendationsFuture = _fetchRecommendations();
+    _profileFuture = _fetchUserProfile();
   }
 
   Future<DashboardRecommendations> _fetchRecommendations() {
@@ -36,10 +41,103 @@ class _DashboardScreenState extends State<DashboardScreen> {
         .fetchDashboardRecommendations();
   }
 
+  Future<AuthUserProfile?> _fetchUserProfile() {
+    debugPrint('Fetching user profile for dashboard');
+    return context.read<AuthRepository>().fetchUserProfile();
+  }
+
   void _refreshRecommendations() {
     setState(() {
       _recommendationsFuture = _fetchRecommendations();
     });
+  }
+
+  void _refreshUserProfile() {
+    setState(() {
+      _profileFuture = _fetchUserProfile();
+    });
+  }
+
+  void _openEndDrawer() {
+    _scaffoldKey.currentState?.openEndDrawer();
+  }
+
+  void _navigateFromDrawer(String routeName) {
+    Navigator.of(context).pop();
+    context.pushNamed(routeName);
+  }
+
+  Future<void> _showEditProfileDialog(AuthUserProfile current) async {
+    final firstNameController = TextEditingController(
+      text: current.firstName ?? '',
+    );
+    final lastNameController = TextEditingController(
+      text: current.lastName ?? '',
+    );
+
+    final shouldSave = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Edit profile'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              TextField(
+                controller: firstNameController,
+                decoration: const InputDecoration(labelText: 'First name'),
+              ),
+              const SizedBox(height: AppPadding.sm),
+              TextField(
+                controller: lastNameController,
+                decoration: const InputDecoration(labelText: 'Last name'),
+              ),
+            ],
+          ),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: const Text('Save'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (shouldSave != true || !mounted) {
+      firstNameController.dispose();
+      lastNameController.dispose();
+      return;
+    }
+
+    final success = await context.read<AuthRepository>().updateUserProfile(
+      firstName: firstNameController.text,
+      lastName: lastNameController.text,
+    );
+
+    firstNameController.dispose();
+    lastNameController.dispose();
+
+    if (!mounted) {
+      return;
+    }
+
+    if (success) {
+      _refreshUserProfile();
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Profile updated')));
+      return;
+    }
+
+    final error = context.read<AuthRepository>().lastError;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(error ?? 'Could not update profile.')),
+    );
   }
 
   @override
@@ -75,7 +173,126 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ),
       ],
       child: Scaffold(
-        appBar: AppBar(title: const Text('PantryPilot')),
+        key: _scaffoldKey,
+        appBar: AppBar(
+          title: const Text('Pantry Pilot'),
+          actions: <Widget>[
+            FutureBuilder<AuthUserProfile?>(
+              future: _profileFuture,
+              builder: (context, snapshot) {
+                final initials = snapshot.data?.initials ?? 'U';
+                return Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppPadding.sm,
+                  ),
+                  child: IconButton(
+                    onPressed: _openEndDrawer,
+                    tooltip: 'Open account menu',
+                    icon: CircleAvatar(radius: 14, child: Text(initials)),
+                  ),
+                );
+              },
+            ),
+          ],
+        ),
+        endDrawer: Drawer(
+          shape: const RoundedRectangleBorder(
+            borderRadius: BorderRadius.only(
+              topLeft: Radius.circular(AppRadius.lg),
+            ),
+          ),
+          child: SafeArea(
+            top: false,
+            child: Column(
+              children: <Widget>[
+                FutureBuilder<AuthUserProfile?>(
+                  future: _profileFuture,
+                  builder: (context, snapshot) {
+                    final profile = snapshot.data;
+                    return UserAccountsDrawerHeader(
+                      margin: EdgeInsets.zero,
+                      accountName: Text(
+                        profile?.fullName.isNotEmpty == true
+                            ? profile!.fullName
+                            : 'Pantry Pilot User',
+                      ),
+                      accountEmail: Text(profile?.email ?? 'Signed in'),
+                      currentAccountPicture: CircleAvatar(
+                        child: Text(profile?.initials ?? 'U'),
+                      ),
+                    );
+                  },
+                ),
+                Expanded(
+                  child: ListView(
+                    padding: EdgeInsets.zero,
+                    children: <Widget>[
+                      ListTile(
+                        leading: const Icon(Icons.edit_outlined),
+                        title: const Text('Edit profile'),
+                        onTap: () async {
+                          final profile = await _profileFuture;
+                          if (!mounted) {
+                            return;
+                          }
+                          Navigator.of(context).pop();
+                          await _showEditProfileDialog(
+                            profile ??
+                                const AuthUserProfile(
+                                  firstName: null,
+                                  lastName: null,
+                                  email: null,
+                                ),
+                          );
+                        },
+                      ),
+                      const Divider(),
+                      ListTile(
+                        leading: const Icon(Icons.query_stats),
+                        title: const Text('KPI dashboard'),
+                        onTap: () => _navigateFromDrawer(AppRouter.kpiName),
+                      ),
+                      ListTile(
+                        leading: const Icon(Icons.feedback_outlined),
+                        title: const Text('Feedback'),
+                        onTap: () =>
+                            _navigateFromDrawer(AppRouter.feedbackName),
+                      ),
+                      ListTile(
+                        leading: const Icon(Icons.favorite_outline),
+                        title: const Text('Favorites'),
+                        onTap: () =>
+                            _navigateFromDrawer(AppRouter.favoritesName),
+                      ),
+                      ListTile(
+                        leading: const Icon(Icons.analytics_outlined),
+                        title: const Text('Weekly waste summary'),
+                        onTap: () =>
+                            _navigateFromDrawer(AppRouter.wasteSummaryName),
+                      ),
+                      ListTile(
+                        leading: const Icon(Icons.settings_outlined),
+                        title: const Text('Settings'),
+                        onTap: () =>
+                            _navigateFromDrawer(AppRouter.settingsName),
+                      ),
+                    ],
+                  ),
+                ),
+                const Divider(),
+                ListTile(
+                  leading: const Icon(Icons.logout),
+                  title: const Text('Sign out'),
+                  onTap: () {
+                    Navigator.of(context).pop();
+                    context.read<AuthBloc>().add(const AuthSignOutRequested());
+                  },
+                ),
+                const SizedBox(height: AppPadding.sm),
+              ],
+            ),
+          ),
+        ),
         body: FutureBuilder<DashboardRecommendations>(
           future: _recommendationsFuture,
           builder: (context, snapshot) {
@@ -104,58 +321,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     message: 'Could not refresh meal ideas',
                     onRetry: _refreshRecommendations,
                   ),
-                Row(
-                  children: <Widget>[
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: () => context.pushNamed(AppRouter.kpiName),
-                        icon: const Icon(Icons.query_stats),
-                        label: const Text('KPI dashboard'),
-                      ),
-                    ),
-                    const SizedBox(width: AppPadding.sm),
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: () =>
-                            context.pushNamed(AppRouter.feedbackName),
-                        icon: const Icon(Icons.feedback_outlined),
-                        label: const Text('Feedback'),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: AppPadding.sm),
-                Row(
-                  children: <Widget>[
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: () =>
-                            context.pushNamed(AppRouter.favoritesName),
-                        icon: const Icon(Icons.favorite_outline),
-                        label: const Text('Favorites'),
-                      ),
-                    ),
-                    const SizedBox(width: AppPadding.sm),
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: () =>
-                            context.pushNamed(AppRouter.settingsName),
-                        icon: const Icon(Icons.settings_outlined),
-                        label: const Text('Settings'),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: AppPadding.sm),
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    onPressed: () =>
-                        context.pushNamed(AppRouter.wasteSummaryName),
-                    icon: const Icon(Icons.analytics_outlined),
-                    label: const Text('Weekly waste summary'),
-                  ),
-                ),
                 const SizedBox(height: AppPadding.sm),
                 if (upcomingMeals.isNotEmpty)
                   Card(

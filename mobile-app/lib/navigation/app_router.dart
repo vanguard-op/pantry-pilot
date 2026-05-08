@@ -56,15 +56,26 @@ class AppRouter {
   static const _recipeCookSegment = 'cook';
 
   static final appRouter = GoRouter(
-    initialLocation: AppRouter.homePath,
+    initialLocation: AppRouter.loginPath,
     redirect: (context, state) {
+      // Normalize hosted-UI callbacks and bare root requests.
+      final uri = state.uri;
+      final isAuthCallback =
+          uri.scheme == 'pantrypilot' && uri.host.startsWith('auth');
+      if (isAuthCallback || state.matchedLocation == '/') {
+        final authStatus = context.read<AuthBloc>().state.status;
+        final isAuthenticated = authStatus == AuthStatus.authenticated;
+        return isAuthenticated ? AppRouter.homePath : AppRouter.loginPath;
+      }
+
       // 1. Auth gate — redirect to login when not authenticated.
       final authStatus = context.read<AuthBloc>().state.status;
+      final isAuthenticated = authStatus == AuthStatus.authenticated;
       final isLoginRoute = state.matchedLocation == AppRouter.loginPath;
       if (authStatus == AuthStatus.unauthenticated && !isLoginRoute) {
         return AppRouter.loginPath;
       }
-      if (authStatus == AuthStatus.authenticated && isLoginRoute) {
+      if (isAuthenticated && isLoginRoute) {
         return AppRouter.homePath;
       }
 
@@ -72,15 +83,19 @@ class AppRouter {
       final onboardingComplete = context.read<OnboardingBloc>().state.completed;
       final isOnboardingRoute =
           state.matchedLocation == AppRouter.onboardingPath;
-      if (!onboardingComplete && !isOnboardingRoute && !isLoginRoute) {
+      if (isAuthenticated &&
+          !onboardingComplete &&
+          !isOnboardingRoute &&
+          !isLoginRoute) {
         return AppRouter.onboardingPath;
       }
-      if (onboardingComplete && isOnboardingRoute) {
+      if (isAuthenticated && onboardingComplete && isOnboardingRoute) {
         return AppRouter.homePath;
       }
       return null;
     },
     routes: <RouteBase>[
+      GoRoute(path: '/', redirect: (context, state) => AppRouter.loginPath),
       GoRoute(
         name: AppRouter.loginName,
         path: AppRouter.loginPath,

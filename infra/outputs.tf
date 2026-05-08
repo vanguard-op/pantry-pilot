@@ -38,3 +38,37 @@ output "media_bucket_domain_name" {
   value       = module.media_bucket.s3_bucket_bucket_regional_domain_name
 }
 
+output "db_cluster_endpoint" {
+  description = "Aurora PostgreSQL cluster endpoint"
+  value       = aws_rds_cluster.pantry.endpoint
+}
+
+output "db_cluster_port" {
+  description = "Aurora PostgreSQL cluster port"
+  value       = aws_rds_cluster.pantry.port
+}
+
+output "db_name" {
+  description = "Application database name"
+  value       = aws_rds_cluster.pantry.database_name
+}
+
+output "db_master_username" {
+  description = "Application database username"
+  value       = aws_rds_cluster.pantry.master_username
+}
+
+output "db_master_secret_arn" {
+  description = "Secrets Manager ARN for Aurora master credentials"
+  value       = aws_rds_cluster.pantry.master_user_secret[0].secret_arn
+}
+
+output "api_url" {
+  description = "Base URL for the Pantry Pilot HTTP API"
+  value = try(
+    module.api_gateway.api_endpoint,
+    module.api_gateway.apigatewayv2_api_api_endpoint,
+    module.api_gateway.stage_invoke_url,
+  )
+}
+

@@ -35,7 +35,12 @@ class CognitoConfig {
   static const redirectUri = 'pantrypilot://auth';
   static const logoutRedirectUri = 'pantrypilot://auth/logout';
 
-  static const scopes = <String>['openid', 'email', 'profile'];
+  static const scopes = <String>[
+    'openid',
+    'email',
+    'profile',
+    'aws.cognito.signin.user.admin',
+  ];
 
   static bool get hasRequiredValues {
     debugPrint(
@@ -182,5 +187,119 @@ class AuthRepository {
     } on AuthException {
       // Best-effort sign out.
     }
+  }
+
+  /// Loads common user profile attributes from Cognito.
+  Future<AuthUserProfile?> fetchUserProfile() async {
+    if (!Amplify.isConfigured) {
+      return null;
+    }
+
+    try {
+      final attributes = await Amplify.Auth.fetchUserAttributes();
+      final email = _readAttribute(attributes, CognitoUserAttributeKey.email);
+      final firstName = _readAttribute(
+        attributes,
+        CognitoUserAttributeKey.givenName,
+      );
+      final lastName = _readAttribute(
+        attributes,
+        CognitoUserAttributeKey.familyName,
+      );
+
+      return AuthUserProfile(
+        firstName: firstName,
+        lastName: lastName,
+        email: email,
+      );
+    } on AuthException catch (error) {
+      _lastError = error.message;
+      return null;
+    }
+  }
+
+  /// Updates editable Cognito profile attributes.
+  Future<bool> updateUserProfile({String? firstName, String? lastName}) async {
+    if (!Amplify.isConfigured) {
+      await initialize();
+    }
+    if (!Amplify.isConfigured) {
+      _lastError =
+          _lastError ?? 'Amplify Auth is not configured for this build.';
+      return false;
+    }
+
+    final updates = <AuthUserAttributeKey, String>{
+      if (firstName != null && firstName.trim().isNotEmpty)
+        CognitoUserAttributeKey.givenName: firstName.trim(),
+      if (lastName != null && lastName.trim().isNotEmpty)
+        CognitoUserAttributeKey.familyName: lastName.trim(),
+    };
+
+    try {
+      for (final entry in updates.entries) {
+        await Amplify.Auth.updateUserAttribute(
+          userAttributeKey: entry.key,
+          value: entry.value,
+        );
+      }
+      _lastError = null;
+      return true;
+    } on AuthException catch (error) {
+      _lastError = error.message;
+      return false;
+    }
+  }
+
+  String? _readAttribute(
+    List<AuthUserAttribute> attributes,
+    AuthUserAttributeKey key,
+  ) {
+    for (final attribute in attributes) {
+      if (attribute.userAttributeKey.key == key.key) {
+        return attribute.value;
+      }
+    }
+    return null;
+  }
+}
+
+class AuthUserProfile {
+  const AuthUserProfile({
+    required this.firstName,
+    required this.lastName,
+    required this.email,
+  });
+
+  final String? firstName;
+  final String? lastName;
+  final String? email;
+
+  String get fullName {
+    final first = firstName?.trim() ?? '';
+    final last = lastName?.trim() ?? '';
+    final combined = '$first $last'.trim();
+    if (combined.isNotEmpty) {
+      return combined;
+    }
+    if ((email?.trim().isNotEmpty ?? false)) {
+      return email!.trim();
+    }
+    return 'User';
+  }
+
+  String get initials {
+    final source = fullName;
+    final parts = source
+        .split(RegExp(r'\s+'))
+        .where((part) => part.isNotEmpty)
+        .toList(growable: false);
+    if (parts.isEmpty) {
+      return 'U';
+    }
+    if (parts.length == 1) {
+      return parts.first[0].toUpperCase();
+    }
+    return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
   }
 }

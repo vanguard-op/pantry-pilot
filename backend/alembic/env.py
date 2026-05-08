@@ -9,7 +9,9 @@ from app import models  # noqa: F401 - imports SQLModel metadata
 
 config = context.config
 settings = get_settings()
-config.set_main_option("sqlalchemy.url", settings.database_url)
+# Alembic uses ConfigParser interpolation, so literal '%' in URLs must be
+# escaped as '%%' (for example percent-encoded password bytes).
+config.set_main_option("sqlalchemy.url", settings.database_url.replace("%", "%%"))
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)

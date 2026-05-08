@@ -249,6 +249,7 @@ class ApiClient {
 class ApiConfig {
   static String get defaultBaseUrl {
     const override = String.fromEnvironment('API_BASE_URL');
+    debugPrint('API Base URL: $override');
     if (override.isNotEmpty) {
       return override;
     }

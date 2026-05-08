@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../blocs/auth/auth_bloc.dart';
 import '../../blocs/pantry/pantry_bloc.dart';
 import '../../blocs/planner/planner_bloc.dart';
 import '../../blocs/recipes/recipes_bloc.dart';
@@ -57,10 +56,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       body: ListView(
         padding: const EdgeInsets.all(AppPadding.md),
         children: <Widget>[
-          Text(
-            'Household profile',
-            style: textTheme.titleMedium,
-          ),
+          Text('Household profile', style: textTheme.titleMedium),
           const SizedBox(height: AppPadding.md),
           Text('Household size: $_householdSize'),
           Slider(
@@ -95,15 +91,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
           TextField(
             controller: _dietaryNotesController,
             maxLines: 3,
-            decoration: const InputDecoration(
-              labelText: 'Dietary preferences',
-            ),
+            decoration: const InputDecoration(labelText: 'Dietary preferences'),
           ),
           const SizedBox(height: AppPadding.lg),
-          Text(
-            'Notifications',
-            style: textTheme.titleMedium,
-          ),
+          Text('Notifications', style: textTheme.titleMedium),
           const SizedBox(height: AppPadding.sm),
           SwitchListTile(
             value: _expiryNotificationsEnabled,
@@ -122,10 +113,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             },
           ),
           const SizedBox(height: AppPadding.lg),
-          Text(
-            'Pantry behavior',
-            style: textTheme.titleMedium,
-          ),
+          Text('Pantry behavior', style: textTheme.titleMedium),
           const SizedBox(height: AppPadding.sm),
           Text('Use-soon threshold: $_expiryThresholdDays days'),
           Slider(
@@ -149,17 +137,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
             },
           ),
           const SizedBox(height: AppPadding.md),
-          const SizedBox(height: AppPadding.lg),
-          const Divider(),
-          const SizedBox(height: AppPadding.sm),
-          ListTile(
-            leading: const Icon(Icons.logout),
-            title: const Text('Sign out'),
-            subtitle: const Text('Sign out of your account'),
-            onTap: () {
-              context.read<AuthBloc>().add(const AuthSignOutRequested());
-            },
-          ),
           const SizedBox(height: AppPadding.lg),
           FilledButton.icon(
             onPressed: () async {
@@ -186,8 +163,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 recipes: recipes,
                 expiryThresholdDays: settings.expiryThresholdDays,
                 expiryAlertsEnabled: settings.expiryNotificationsEnabled,
-                mealRemindersEnabled:
-                    settings.mealReminderNotificationsEnabled,
+                mealRemindersEnabled: settings.mealReminderNotificationsEnabled,
               );
 
               if (!context.mounted) {

@@ -89,67 +89,82 @@ class PantryPilotApp extends StatelessWidget {
         ],
         child: BlocListener<AuthBloc, AuthState>(
           listenWhen: (previous, current) {
-            return !previous.isAuthenticated && current.isAuthenticated;
+            return previous.status != current.status;
           },
           listener: (context, state) {
-            context.read<PantryBloc>().add(const PantryStarted());
-            context.read<PlannerBloc>().add(const PlannerStarted());
-            context.read<RecipesBloc>().add(const RecipesStarted());
+            if (state.isAuthenticated) {
+              context.read<PantryBloc>().add(const PantryStarted());
+              context.read<PlannerBloc>().add(const PlannerStarted());
+              context.read<RecipesBloc>().add(const RecipesStarted());
+            }
+
+            // Re-run GoRouter redirect immediately on auth changes.
+            AppRouter.appRouter.refresh();
           },
-          child: BlocListener<PantryBloc, PantryState>(
-            listener: (context, pantryState) {
-              final settings = context.read<SettingsRepository>();
-              context.read<NotificationService>().syncReminders(
-                pantryItems: pantryState.items,
-                plannedMeals: context.read<PlannerBloc>().state.meals,
-                recipes: context.read<RecipesBloc>().state.recipes,
-                expiryThresholdDays: settings.expiryThresholdDays,
-                expiryAlertsEnabled: settings.expiryNotificationsEnabled,
-                mealRemindersEnabled: settings.mealReminderNotificationsEnabled,
-              );
+          child: BlocListener<OnboardingBloc, OnboardingState>(
+            listenWhen: (previous, current) {
+              return previous.completed != current.completed;
             },
-            child: BlocListener<PlannerBloc, PlannerState>(
-              listenWhen: (previous, current) {
-                return previous.meals.length != current.meals.length;
-              },
-              listener: (context, plannerState) {
+            listener: (context, state) {
+              // Re-run GoRouter redirect immediately when onboarding state flips.
+              AppRouter.appRouter.refresh();
+            },
+            child: BlocListener<PantryBloc, PantryState>(
+              listener: (context, pantryState) {
                 final settings = context.read<SettingsRepository>();
                 context.read<NotificationService>().syncReminders(
-                  pantryItems: context.read<PantryBloc>().state.items,
-                  plannedMeals: plannerState.meals,
+                  pantryItems: pantryState.items,
+                  plannedMeals: context.read<PlannerBloc>().state.meals,
                   recipes: context.read<RecipesBloc>().state.recipes,
                   expiryThresholdDays: settings.expiryThresholdDays,
                   expiryAlertsEnabled: settings.expiryNotificationsEnabled,
                   mealRemindersEnabled:
                       settings.mealReminderNotificationsEnabled,
                 );
-
-                if (plannerState.meals.isNotEmpty) {
-                  context
-                      .read<SettingsRepository>()
-                      .setFirstPlanCreatedAtIfAbsent(DateTime.now());
-                }
               },
-              child: BlocListener<RecipesBloc, RecipesState>(
-                listener: (context, recipesState) {
+              child: BlocListener<PlannerBloc, PlannerState>(
+                listenWhen: (previous, current) {
+                  return previous.meals.length != current.meals.length;
+                },
+                listener: (context, plannerState) {
                   final settings = context.read<SettingsRepository>();
                   context.read<NotificationService>().syncReminders(
                     pantryItems: context.read<PantryBloc>().state.items,
-                    plannedMeals: context.read<PlannerBloc>().state.meals,
-                    recipes: recipesState.recipes,
+                    plannedMeals: plannerState.meals,
+                    recipes: context.read<RecipesBloc>().state.recipes,
                     expiryThresholdDays: settings.expiryThresholdDays,
                     expiryAlertsEnabled: settings.expiryNotificationsEnabled,
                     mealRemindersEnabled:
                         settings.mealReminderNotificationsEnabled,
                   );
+
+                  if (plannerState.meals.isNotEmpty) {
+                    context
+                        .read<SettingsRepository>()
+                        .setFirstPlanCreatedAtIfAbsent(DateTime.now());
+                  }
                 },
-                child: MaterialApp.router(
-                  title: 'PantryPilot',
-                  debugShowCheckedModeBanner: false,
-                  theme: AppTheme.lightTheme,
-                  darkTheme: AppTheme.darkTheme,
-                  themeMode: ThemeMode.system,
-                  routerConfig: AppRouter.appRouter,
+                child: BlocListener<RecipesBloc, RecipesState>(
+                  listener: (context, recipesState) {
+                    final settings = context.read<SettingsRepository>();
+                    context.read<NotificationService>().syncReminders(
+                      pantryItems: context.read<PantryBloc>().state.items,
+                      plannedMeals: context.read<PlannerBloc>().state.meals,
+                      recipes: recipesState.recipes,
+                      expiryThresholdDays: settings.expiryThresholdDays,
+                      expiryAlertsEnabled: settings.expiryNotificationsEnabled,
+                      mealRemindersEnabled:
+                          settings.mealReminderNotificationsEnabled,
+                    );
+                  },
+                  child: MaterialApp.router(
+                    title: 'Pantry Pilot',
+                    debugShowCheckedModeBanner: false,
+                    theme: AppTheme.lightTheme,
+                    darkTheme: AppTheme.darkTheme,
+                    themeMode: ThemeMode.system,
+                    routerConfig: AppRouter.appRouter,
+                  ),
                 ),
               ),
             ),

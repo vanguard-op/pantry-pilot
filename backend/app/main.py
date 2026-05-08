@@ -4,7 +4,6 @@ from typing import Any
 from fastapi import FastAPI
 from fastapi.openapi.utils import get_openapi
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy.exc import ProgrammingError, SQLAlchemyError
 
 from app.api.routes import (
     feedback,
@@ -18,10 +17,7 @@ from app.api.routes import (
     shopping,
     substitutions,
 )
-from app.core.db import engine
 from app.core.config import get_settings
-from app.core.recipe_seed import seed_recipes_if_empty
-from sqlmodel import Session
 
 settings_obj = get_settings()
 app = FastAPI(
@@ -77,6 +73,7 @@ def custom_openapi() -> dict[str, Any]:
                         "openid": "OpenID Connect scope",
                         "email": "User email scope",
                         "profile": "User profile scope",
+                        "aws.cognito.signin.user.admin": "Cognito user admin scope",
                     },
                 }
             },
@@ -87,23 +84,3 @@ def custom_openapi() -> dict[str, Any]:
 
 
 app.openapi = custom_openapi
-
-
-@app.on_event("startup")
-def seed_initial_recipes() -> None:
-    logger.info("Seeding starter recipes if table is empty")
-    try:
-        with Session(engine) as session:
-            seed_recipes_if_empty(session)
-    except ProgrammingError as exc:
-        sqlstate = getattr(getattr(exc, "orig", None), "sqlstate", None)
-        # 42P01 = undefined_table in Postgres; occurs when migrations are not yet applied.
-        if sqlstate == "42P01":
-            logger.warning(
-                "Skipping starter recipe seed because the recipe table is missing. "
-                "Run 'alembic upgrade head' to apply schema migrations."
-            )
-            return
-        logger.exception("Failed to seed starter recipes on startup")
-    except SQLAlchemyError:
-        logger.exception("Failed to seed starter recipes on startup")
