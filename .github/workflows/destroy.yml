@@ -1,0 +1,27 @@
+on:
+  workflow_dispatch:
+
+jobs:
+  infra:
+    runs-on: "ubuntu-latest"
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: "Checkout code"
+        uses: actions/checkout@v4
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.14.3
+      - name: "Configure AWS credentials(OIDC)"
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: "${{ secrets.AWS_ROLE_TO_ASSUME }}"
+          role-session-name: "github-actions"
+          aws-region: "${{ vars.AWS_REGION }}"
+      - name: "Terraform destroy"
+        working-directory: "infra/environments/prod"
+        run: |
+          terraform init
+          terraform destroy -auto-approve
