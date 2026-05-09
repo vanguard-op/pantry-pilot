@@ -60,6 +60,7 @@ module "rds_aurora" {
   master_username   = var.db_master_username
   manage_master_user_password = true
 
+  create_db_subnet_group = true
   db_subnet_group_name   = "pantry-pilot-db-subnet-group"
   publicly_accessible    = var.db_publicly_accessible
   vpc_id                 = data.aws_vpc.default.id
