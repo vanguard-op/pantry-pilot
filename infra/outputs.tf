@@ -40,27 +40,33 @@ output "media_bucket_domain_name" {
 
 output "db_cluster_endpoint" {
   description = "Aurora PostgreSQL cluster endpoint"
-  value       = aws_rds_cluster.pantry.endpoint
+  value       = module.rds_aurora.cluster_endpoint
 }
 
 output "db_cluster_port" {
   description = "Aurora PostgreSQL cluster port"
-  value       = aws_rds_cluster.pantry.port
+  value       = module.rds_aurora.cluster_port
+}
+
+output "db_cluster_identifier" {
+  description = "Aurora PostgreSQL cluster identifier"
+  value       = module.rds_aurora.cluster_id
 }
 
 output "db_name" {
   description = "Application database name"
-  value       = aws_rds_cluster.pantry.database_name
+  value       = var.db_name
 }
 
 output "db_master_username" {
   description = "Application database username"
-  value       = aws_rds_cluster.pantry.master_username
+  value       = var.db_master_username
+  sensitive   = true
 }
 
-output "db_master_secret_arn" {
-  description = "Secrets Manager ARN for Aurora master credentials"
-  value       = aws_rds_cluster.pantry.master_user_secret[0].secret_arn
+output "db_master_user_secret_arn" {
+  description = "ARN of the master user secret in Secrets Manager"
+  value       = module.rds_aurora.cluster_master_user_secret[0].secret_arn
 }
 
 output "api_url" {

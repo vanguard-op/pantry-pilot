@@ -1,4 +1,25 @@
 # ===================================
+# Security Groups
+# ===================================
+resource "aws_security_group" "lambda" {
+  name        = "pantry-pilot-lambda-sg"
+  description = "Lambda egress for PantryPilot backend"
+  vpc_id      = data.aws_vpc.default.id
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = {
+    Environment = var.environment
+    Terraform   = "true"
+  }
+}
+
+# ===================================
 # Docker Build: Backend
 # ===================================
 data "aws_ecr_authorization_token" "token" {}
@@ -64,11 +85,11 @@ module "api_handler" {
   environment_variables = {
     APP_ENV                         = var.environment
     ALLOWED_ORIGINS                 = "*"
-    DATABASE_NAME                   = aws_rds_cluster.pantry.database_name
-    DATABASE_USER                   = aws_rds_cluster.pantry.master_username
-    DATABASE_HOST                   = aws_rds_cluster.pantry.endpoint
-    DATABASE_PORT                   = tostring(aws_rds_cluster.pantry.port)
-    DATABASE_SECRET_ARN             = aws_rds_cluster.pantry.master_user_secret[0].secret_arn
+    DATABASE_NAME                   = var.db_name
+    DATABASE_USER                   = var.db_master_username
+    DATABASE_HOST                   = module.rds_aurora.cluster_endpoint
+    DATABASE_PORT                   = tostring(module.rds_aurora.cluster_port)
+    DATABASE_SECRET_ARN             = module.rds_aurora.cluster_master_user_secret[0].secret_arn
     COGNITO_REGION                  = aws_cognito_user_pool.this.region
     COGNITO_USER_POOL_ID            = aws_cognito_user_pool.this.id
     COGNITO_CLIENT_ID               = aws_cognito_user_pool_client.this.id
@@ -151,11 +172,11 @@ module "db_migrator" {
 
   environment_variables = {
     APP_ENV             = var.environment
-    DATABASE_NAME       = aws_rds_cluster.pantry.database_name
-    DATABASE_USER       = aws_rds_cluster.pantry.master_username
-    DATABASE_HOST       = aws_rds_cluster.pantry.endpoint
-    DATABASE_PORT       = tostring(aws_rds_cluster.pantry.port)
-    DATABASE_SECRET_ARN = aws_rds_cluster.pantry.master_user_secret[0].secret_arn
+    DATABASE_NAME       = var.db_name
+    DATABASE_USER       = var.db_master_username
+    DATABASE_HOST       = module.rds_aurora.cluster_endpoint
+    DATABASE_PORT       = tostring(module.rds_aurora.cluster_port)
+    DATABASE_SECRET_ARN = module.rds_aurora.cluster_master_user_secret[0].secret_arn
   }
 
   create_role = true
@@ -173,8 +194,8 @@ module "db_migrator" {
 resource "null_resource" "run_db_migrations" {
   triggers = {
     code_hash     = local.code_hash
-    db_endpoint   = aws_rds_cluster.pantry.endpoint
-    db_secret_arn = aws_rds_cluster.pantry.master_user_secret[0].secret_arn
+    db_endpoint   = module.rds_aurora.cluster_endpoint
+    db_secret_arn = module.rds_aurora.cluster_master_user_secret[0].secret_arn
   }
 
   provisioner "local-exec" {
@@ -184,7 +205,7 @@ resource "null_resource" "run_db_migrations" {
   depends_on = [
     module.api_handler,
     module.db_migrator,
-    aws_rds_cluster_instance.pantry,
+    module.rds_aurora,
   ]
 }
 
@@ -201,7 +222,7 @@ resource "aws_iam_role_policy" "api_handler_secrets_policy" {
           "secretsmanager:GetSecretValue",
           "secretsmanager:DescribeSecret"
         ],
-        Resource = aws_rds_cluster.pantry.master_user_secret[0].secret_arn
+        Resource = module.rds_aurora.cluster_master_user_secret[0].secret_arn
       }
     ]
   })
@@ -220,7 +241,7 @@ resource "aws_iam_role_policy" "db_migrator_secrets_policy" {
           "secretsmanager:GetSecretValue",
           "secretsmanager:DescribeSecret"
         ],
-        Resource = aws_rds_cluster.pantry.master_user_secret[0].secret_arn
+        Resource = module.rds_aurora.cluster_master_user_secret[0].secret_arn
       }
     ]
   })

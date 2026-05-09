@@ -9,11 +9,9 @@ data "aws_subnets" "default" {
   }
 }
 
-resource "aws_db_subnet_group" "pantry" {
-  name       = "pantry-pilot-db-subnet-group"
-  subnet_ids = data.aws_subnets.default.ids
-}
-
+# ===================================
+# Security Group: Database
+# ===================================
 resource "aws_security_group" "db" {
   name        = "pantry-pilot-db-sg"
   description = "Postgres access for PantryPilot"
@@ -41,47 +39,53 @@ resource "aws_security_group" "db" {
     protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
   }
-}
 
-resource "aws_security_group" "lambda" {
-  name        = "pantry-pilot-lambda-sg"
-  description = "Lambda egress for PantryPilot backend"
-  vpc_id      = data.aws_vpc.default.id
-
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
+  tags = {
+    Environment = var.environment
+    Terraform   = "true"
   }
 }
 
-resource "aws_rds_cluster" "pantry" {
-  cluster_identifier = "pantry-pilot-aurora-pg"
-  engine             = "aurora-postgresql"
-  engine_version     = "16.13"
+# ===================================
+# Aurora PostgreSQL Cluster (Module)
+# ===================================
+module "rds_aurora" {
+  source  = "terraform-aws-modules/rds-aurora/aws"
+  version = "~> 9.0"
 
-  database_name   = "pantry_pilot"
-  master_username = "pantry_user"
+  name              = "pantry-pilot-aurora-pg"
+  engine            = "aurora-postgresql"
+  engine_version    = var.db_engine_version
+  database_name     = var.db_name
+  master_username   = var.db_master_username
   manage_master_user_password = true
 
-  db_subnet_group_name   = aws_db_subnet_group.pantry.name
+  db_subnet_group_name   = "pantry-pilot-db-subnet-group"
+  publicly_accessible    = var.db_publicly_accessible
+  vpc_id                 = data.aws_vpc.default.id
+  subnets                = data.aws_subnets.default.ids
   vpc_security_group_ids = [aws_security_group.db.id]
   storage_encrypted      = true
-  skip_final_snapshot    = true
+  skip_final_snapshot    = var.db_skip_final_snapshot
+  backup_retention_period = var.db_backup_retention_period
 
-  serverlessv2_scaling_configuration {
-    min_capacity             = 0
-    max_capacity             = 1
-    seconds_until_auto_pause = 300
+  serverlessv2_scaling_configuration = {
+    min_capacity             = var.db_serverlessv2_scaling_min_capacity
+    max_capacity             = var.db_serverlessv2_scaling_max_capacity
+    seconds_until_auto_pause = var.db_serverlessv2_auto_pause_seconds
   }
-}
 
-resource "aws_rds_cluster_instance" "pantry" {
-  identifier          = "pantry-pilot-aurora-pg-1"
-  cluster_identifier  = aws_rds_cluster.pantry.id
-  instance_class      = "db.serverless"
-  engine              = aws_rds_cluster.pantry.engine
-  engine_version      = aws_rds_cluster.pantry.engine_version
-  publicly_accessible = true
+  instances = {
+    one = {
+      instance_class       = var.db_instance_class
+      publicly_accessible  = var.db_publicly_accessible
+    }
+  }
+
+  enabled_cloudwatch_logs_exports = ["postgresql"]
+
+  tags = {
+    Environment = var.environment
+    Terraform   = "true"
+  }
 }
