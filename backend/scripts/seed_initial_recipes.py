@@ -4,7 +4,7 @@ from sqlalchemy.exc import ProgrammingError, SQLAlchemyError
 from sqlmodel import Session
 
 from app.core.db import engine
-from app.core.recipe_seed import seed_recipes_if_empty
+from scripts.recipe.recipe_seed import seed_recipes_if_empty
 
 
 logging.basicConfig(level=logging.INFO)

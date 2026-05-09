@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import date, datetime
 from enum import Enum
 from typing import Any, Dict, List, Optional
+from typing_extensions import TypedDict
 from uuid import uuid4
 
 from sqlalchemy import JSON, Column
@@ -69,6 +70,12 @@ class RecipeOwnershipScope(str, Enum):
     custom_account = "custom"
 
 
+class RecipeStep(TypedDict):
+    description: str
+    duration_minutes: int
+    ingredient_mentions: List[str]
+
+
 class RecipeBase(SQLModel):
     title: str
     description: str
@@ -78,7 +85,7 @@ class RecipeBase(SQLModel):
     difficulty: Difficulty = Difficulty.beginner
     tags: List[str] = Field(default_factory=list, sa_column=Column(JSON))
     ingredients: List[str] = Field(default_factory=list, sa_column=Column(JSON))
-    steps: List[Dict[str, Any]] = Field(default_factory=list, sa_column=Column(JSON))
+    steps: List[RecipeStep] = Field(default_factory=list, sa_column=Column(JSON))
 
 
 class Recipe(RecipeBase, table=True):
@@ -102,7 +109,7 @@ class RecipeUpdate(SQLModel):
     difficulty: Optional[Difficulty] = None
     tags: Optional[List[str]] = None
     ingredients: Optional[List[str]] = None
-    steps: Optional[List[Dict[str, Any]]] = None
+    steps: Optional[List[RecipeStep]] = None
 
 
 class RecipePublic(SQLModel):
@@ -122,7 +129,7 @@ class RecipePublic(SQLModel):
     difficulty: Difficulty
     tags: List[str]
     ingredients: List[str]
-    steps: List[Dict[str, Any]]
+    steps: List[RecipeStep]
     ownership_scope: RecipeOwnershipScope
     is_favorite: bool
     created_at: datetime
