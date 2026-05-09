@@ -16,8 +16,7 @@ class PlannerRepository {
   Future<void> initialize() => _refresh();
 
   List<PlannedMeal> getAll() =>
-      _meals.toList(growable: false)
-        ..sort((a, b) => a.date.compareTo(b.date));
+      _meals.toList(growable: false)..sort((a, b) => a.date.compareTo(b.date));
 
   Stream<List<PlannedMeal>> watchAll() async* {
     if (!_initialized && !_loading) {
@@ -36,11 +35,13 @@ class PlannerRepository {
     );
 
     await _ensureLoaded();
-    final exists = _meals.any((entry) => entry.id == normalizedMeal.id);
-    final responseMap = exists
+    final existingMeal = _meals
+        .where((entry) => entry.id == normalizedMeal.id)
+        .firstOrNull;
+    final responseMap = existingMeal != null
         ? await _apiClient.patchObject(
             '/api/v1/planner/${normalizedMeal.id}',
-            body: normalizedMeal.toMap(),
+            body: _buildPatchBody(existingMeal, normalizedMeal),
           )
         : await _apiClient.postObject(
             '/api/v1/planner',
@@ -98,5 +99,36 @@ class PlannerRepository {
         return a.slot.compareTo(b.slot);
       });
     _controller.add(getAll());
+  }
+
+  Map<String, dynamic> _buildPatchBody(
+    PlannedMeal existingMeal,
+    PlannedMeal updatedMeal,
+  ) {
+    final body = <String, dynamic>{};
+    if (existingMeal.recipeId != updatedMeal.recipeId) {
+      body['recipe_id'] = updatedMeal.recipeId;
+    }
+    if (!_isSameCalendarDay(existingMeal.date, updatedMeal.date)) {
+      body['date'] = _serializeDate(updatedMeal.date);
+    }
+    if (existingMeal.slot != updatedMeal.slot) {
+      body['slot'] = updatedMeal.slot;
+    }
+    return body;
+  }
+
+  bool _isSameCalendarDay(DateTime left, DateTime right) {
+    return left.year == right.year &&
+        left.month == right.month &&
+        left.day == right.day;
+  }
+
+  String _serializeDate(DateTime value) {
+    return DateTime(
+      value.year,
+      value.month,
+      value.day,
+    ).toIso8601String().split('T').first;
   }
 }
