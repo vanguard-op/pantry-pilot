@@ -79,8 +79,8 @@ module "api_handler" {
   package_type   = "Image"
   image_uri      = module.docker_build.image_uri
 
-  vpc_subnet_ids         = data.aws_subnets.default.ids
-  vpc_security_group_ids = [aws_security_group.lambda.id]
+  # vpc_subnet_ids         = data.aws_subnets.default.ids
+  # vpc_security_group_ids = [aws_security_group.lambda.id]
 
   environment_variables = {
     APP_ENV                         = var.environment
@@ -167,8 +167,8 @@ module "db_migrator" {
   image_uri            = module.docker_build.image_uri
   image_config_command = ["app.migration_handler.handler"]
 
-  vpc_subnet_ids         = data.aws_subnets.default.ids
-  vpc_security_group_ids = [aws_security_group.lambda.id]
+  # vpc_subnet_ids         = data.aws_subnets.default.ids
+  # vpc_security_group_ids = [aws_security_group.lambda.id]
 
   environment_variables = {
     APP_ENV             = var.environment
