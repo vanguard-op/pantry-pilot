@@ -199,7 +199,7 @@ resource "null_resource" "run_db_migrations" {
   }
 
   provisioner "local-exec" {
-    command = "aws lambda invoke --function-name ${module.db_migrator.lambda_function_name} --payload '{}' migrate-response.json"
+    command = "aws lambda invoke --function-name ${module.db_migrator.lambda_function_name} --cli-connect-timeout 60 --cli-read-timeout 900 --payload '{}' --cli-binary-format raw-in-base64-out migrate-response.json"
   }
 
   depends_on = [
