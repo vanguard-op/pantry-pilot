@@ -12,6 +12,10 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 
     app_env: str = Field(default="dev", alias="APP_ENV")
+
+    AWS_ACCESS_KEY_ID: str = Field(default="", alias="AWS_ACCESS_KEY_ID")
+    AWS_SECRET_ACCESS_KEY: str = Field(default="", alias="AWS_SECRET_ACCESS_KEY")
+    
     database_url_override: str = Field(
         default="",
         alias="DATABASE_URL",
