@@ -27,6 +27,14 @@ resource "aws_security_group" "db" {
     security_groups = [aws_security_group.lambda.id]
   }
 
+  ingress {
+    description = "Postgres public access"
+    from_port   = 5432
+    to_port     = 5432
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
   egress {
     from_port   = 0
     to_port     = 0
@@ -70,9 +78,10 @@ resource "aws_rds_cluster" "pantry" {
 }
 
 resource "aws_rds_cluster_instance" "pantry" {
-  identifier         = "pantry-pilot-aurora-pg-1"
-  cluster_identifier = aws_rds_cluster.pantry.id
-  instance_class     = "db.serverless"
-  engine             = aws_rds_cluster.pantry.engine
-  engine_version     = aws_rds_cluster.pantry.engine_version
+  identifier          = "pantry-pilot-aurora-pg-1"
+  cluster_identifier  = aws_rds_cluster.pantry.id
+  instance_class      = "db.serverless"
+  engine              = aws_rds_cluster.pantry.engine
+  engine_version      = aws_rds_cluster.pantry.engine_version
+  publicly_accessible = true
 }

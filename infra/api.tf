@@ -225,3 +225,14 @@ resource "aws_iam_role_policy" "db_migrator_secrets_policy" {
     ]
   })
 }
+
+# Allow Lambda to create/manage ENIs when placed inside a VPC
+resource "aws_iam_role_policy_attachment" "api_handler_vpc_access" {
+  role       = module.api_handler.lambda_role_name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole"
+}
+
+resource "aws_iam_role_policy_attachment" "db_migrator_vpc_access" {
+  role       = module.db_migrator.lambda_role_name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole"
+}
