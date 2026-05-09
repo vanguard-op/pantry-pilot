@@ -20,12 +20,25 @@ resource "aws_security_group" "db" {
   vpc_id      = data.aws_vpc.default.id
 
   ingress {
-    description = "Postgres"
-    from_port   = 5432
-    to_port     = 5432
-    protocol    = "tcp"
+    description     = "Postgres from Lambda"
+    from_port       = 5432
+    to_port         = 5432
+    protocol        = "tcp"
+    security_groups = [aws_security_group.lambda.id]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
   }
+}
+
+resource "aws_security_group" "lambda" {
+  name        = "pantry-pilot-lambda-sg"
+  description = "Lambda egress for PantryPilot backend"
+  vpc_id      = data.aws_vpc.default.id
 
   egress {
     from_port   = 0
