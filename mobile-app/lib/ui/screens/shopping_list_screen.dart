@@ -103,6 +103,7 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
   final List<String> _customItems = <String>[];
   List<ShoppingListItem> _generatedItems = const <ShoppingListItem>[];
   bool _isLoading = true;
+  bool _isSyncing = false;
   String? _loadError;
 
   @override
@@ -131,6 +132,10 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
 
     final missingCounts = <String, int>{
       for (final item in _generatedItems) item.name: item.neededForMeals,
+    };
+    final itemUnits = <String, String>{
+      for (final item in _generatedItems) item.name: item.unit,
+      for (final item in _customItems) item: 'pcs',
     };
     final generatedItems = _generatedItems
         .map((item) => item.name)
@@ -214,11 +219,15 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
             child: SizedBox(
               width: double.infinity,
               child: FilledButton.icon(
-                onPressed: _checkedItems.isEmpty
+                onPressed: _checkedItems.isEmpty || _isSyncing
                     ? null
-                    : () => _showBoughtItemsSyncDialog(context),
+                    : () => _syncSelectedBoughtItems(context, itemUnits),
                 icon: const Icon(Icons.inventory_2_outlined),
-                label: const Text('Add Bought Items to Pantry'),
+                label: Text(
+                  _isSyncing
+                      ? 'Syncing to Pantry...'
+                      : 'Add Bought Items to Pantry',
+                ),
               ),
             ),
           ),
@@ -272,38 +281,143 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
                               ...items.map((item) {
                                 final checked = _checkedItems.contains(item);
                                 final plannedCount = missingCounts[item];
+                                final quantity =
+                                    _purchaseQuantities[item] ?? 1.0;
+                                final unit = itemUnits[item] ?? 'pcs';
 
-                                return CheckboxListTile(
-                                  value: checked,
-                                  title: Text(item),
-                                  subtitle: plannedCount == null
-                                      ? const Text('Custom item')
-                                      : Text(
-                                          'Needed for $plannedCount planned meal(s)',
-                                        ),
-                                  secondary: IconButton(
-                                    icon: const Icon(Icons.delete_outline),
-                                    onPressed: () {
-                                      setState(() {
-                                        _checkedItems.remove(item);
-                                        _customItems.remove(item);
-                                      });
-                                    },
+                                return Card(
+                                  margin: const EdgeInsets.symmetric(
+                                    horizontal: AppPadding.md,
+                                    vertical: AppPadding.xs,
                                   ),
-                                  onChanged: (value) {
-                                    setState(() {
-                                      if (value == true) {
-                                        _checkedItems.add(item);
-                                        _purchaseQuantities.putIfAbsent(
-                                          item,
-                                          () => 1.0,
-                                        );
-                                      } else {
-                                        _checkedItems.remove(item);
-                                        _purchaseQuantities.remove(item);
-                                      }
-                                    });
-                                  },
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(
+                                      AppPadding.sm,
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: <Widget>[
+                                        Row(
+                                          children: <Widget>[
+                                            Expanded(
+                                              child: Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                children: <Widget>[
+                                                  Text(
+                                                    item,
+                                                    style: Theme.of(
+                                                      context,
+                                                    ).textTheme.titleMedium,
+                                                  ),
+                                                  const SizedBox(
+                                                    height: AppPadding.xs,
+                                                  ),
+                                                  Text(
+                                                    plannedCount == null
+                                                        ? 'Custom item'
+                                                        : 'Needed for $plannedCount planned meal(s)',
+                                                    style: Theme.of(
+                                                      context,
+                                                    ).textTheme.bodySmall,
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                            IconButton(
+                                              icon: const Icon(
+                                                Icons.delete_outline,
+                                              ),
+                                              onPressed: () {
+                                                setState(() {
+                                                  _checkedItems.remove(item);
+                                                  _purchaseQuantities.remove(
+                                                    item,
+                                                  );
+                                                  _customItems.remove(item);
+                                                });
+                                              },
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: AppPadding.sm),
+                                        Row(
+                                          children: <Widget>[
+                                            Checkbox(
+                                              value: checked,
+                                              onChanged: (value) {
+                                                setState(() {
+                                                  if (value == true) {
+                                                    _checkedItems.add(item);
+                                                    _purchaseQuantities
+                                                        .putIfAbsent(
+                                                          item,
+                                                          () => quantity,
+                                                        );
+                                                  } else {
+                                                    _checkedItems.remove(item);
+                                                  }
+                                                });
+                                              },
+                                            ),
+                                            const Text('Mark as bought'),
+                                            const Spacer(),
+                                            IconButton(
+                                              tooltip: 'Decrease quantity',
+                                              onPressed: () => _adjustQuantity(
+                                                item,
+                                                delta: -1,
+                                              ),
+                                              icon: const Icon(
+                                                Icons.remove_circle_outline,
+                                              ),
+                                            ),
+                                            SizedBox(
+                                              width: 52,
+                                              child: Text(
+                                                _formatQuantity(quantity),
+                                                textAlign: TextAlign.center,
+                                                style: Theme.of(
+                                                  context,
+                                                ).textTheme.titleSmall,
+                                              ),
+                                            ),
+                                            IconButton(
+                                              tooltip: 'Increase quantity',
+                                              onPressed: () => _adjustQuantity(
+                                                item,
+                                                delta: 1,
+                                              ),
+                                              icon: const Icon(
+                                                Icons.add_circle_outline,
+                                              ),
+                                            ),
+                                            Container(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    horizontal: AppPadding.sm,
+                                                    vertical: AppPadding.xs,
+                                                  ),
+                                              decoration: BoxDecoration(
+                                                color: Theme.of(context)
+                                                    .colorScheme
+                                                    .surfaceContainerHighest,
+                                                borderRadius:
+                                                    BorderRadius.circular(999),
+                                              ),
+                                              child: Text(
+                                                unit,
+                                                style: Theme.of(
+                                                  context,
+                                                ).textTheme.labelMedium,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                  ),
                                 );
                               }),
                             ],
@@ -327,127 +441,93 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
       if (!_customItems.contains(value)) {
         _customItems.add(value);
       }
+      _purchaseQuantities.putIfAbsent(value, () => 1.0);
       _customItemController.clear();
     });
   }
 
-  Future<void> _showBoughtItemsSyncDialog(BuildContext context) async {
-    final selectedItems = _checkedItems.toList(growable: false)..sort();
-    if (selectedItems.isEmpty) {
+  void _adjustQuantity(String item, {required double delta}) {
+    final current = _purchaseQuantities[item] ?? 1.0;
+    final next = current + delta;
+    if (next < 1) {
       return;
     }
 
-    final controllers = <String, TextEditingController>{
-      for (final item in selectedItems)
-        item: TextEditingController(
-          text: (_purchaseQuantities[item] ?? 1.0).toStringAsFixed(1),
-        ),
+    setState(() {
+      _purchaseQuantities[item] = next;
+    });
+  }
+
+  String _formatQuantity(double value) {
+    if (value == value.roundToDouble()) {
+      return value.toStringAsFixed(0);
+    }
+    return value.toStringAsFixed(1);
+  }
+
+  Future<void> _syncSelectedBoughtItems(
+    BuildContext context,
+    Map<String, String> itemUnits,
+  ) async {
+    final bought = <String, double>{
+      for (final item in _checkedItems)
+        if ((_purchaseQuantities[item] ?? 0) > 0)
+          item: _purchaseQuantities[item] ?? 1.0,
     };
 
-    final shouldSync = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) {
-        return AlertDialog(
-          title: const Text('Confirm bought quantities'),
-          content: SizedBox(
-            width: 360,
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: selectedItems
-                    .map((item) {
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: AppPadding.md),
-                        child: TextField(
-                          controller: controllers[item],
-                          keyboardType: const TextInputType.numberWithOptions(
-                            decimal: true,
-                          ),
-                          decoration: InputDecoration(
-                            labelText: item,
-                            helperText: 'Quantity purchased',
-                          ),
-                        ),
-                      );
-                    })
-                    .toList(growable: false),
-              ),
-            ),
-          ),
-          actions: <Widget>[
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(false),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.of(dialogContext).pop(true),
-              child: const Text('Sync to pantry'),
-            ),
-          ],
-        );
-      },
-    );
-
-    if (shouldSync != true || !context.mounted) {
-      for (final controller in controllers.values) {
-        controller.dispose();
-      }
-      return;
-    }
-
-    final confirmed = <String, double>{};
-    for (final item in selectedItems) {
-      final raw = controllers[item]?.text.trim() ?? '';
-      final parsed = double.tryParse(raw);
-      if (parsed != null && parsed > 0) {
-        confirmed[item] = parsed;
-      }
-    }
-
-    for (final controller in controllers.values) {
-      controller.dispose();
-    }
-
-    if (confirmed.isEmpty) {
+    if (bought.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Enter at least one valid quantity.')),
+        const SnackBar(content: Text('Select at least one item to sync.')),
       );
       return;
     }
 
-    await _syncBoughtItemsToPantry(context, confirmed);
+    await _syncBoughtItemsToPantry(context, bought, itemUnits);
   }
 
   Future<void> _syncBoughtItemsToPantry(
     BuildContext context,
     Map<String, double> bought,
+    Map<String, String> itemUnits,
   ) async {
     final shoppingRepository = context.read<ShoppingRepository>();
     final pantryBloc = context.read<PantryBloc>();
     final messenger = ScaffoldMessenger.of(context);
 
-    await shoppingRepository.syncBoughtItems(bought);
-    if (!mounted) {
-      return;
-    }
-    pantryBloc.add(const PantryRefreshed());
-    await _loadShoppingList();
-    if (!mounted) {
-      return;
-    }
-
     setState(() {
-      _purchaseQuantities.addAll(bought);
-      for (final key in bought.keys) {
-        _checkedItems.remove(key);
-      }
+      _isSyncing = true;
     });
 
-    messenger.showSnackBar(
-      SnackBar(
-        content: Text('${bought.length} bought item(s) synced to pantry'),
-      ),
-    );
+    try {
+      await shoppingRepository.syncBoughtItems(bought, itemUnits);
+      if (!mounted) {
+        return;
+      }
+      pantryBloc.add(const PantryRefreshed());
+      await _loadShoppingList();
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _purchaseQuantities.addAll(bought);
+        for (final key in bought.keys) {
+          _checkedItems.remove(key);
+        }
+      });
+
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text('${bought.length} bought item(s) synced to pantry'),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSyncing = false;
+        });
+      }
+    }
   }
 
   Future<void> _loadShoppingList() async {
@@ -464,6 +544,18 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
       }
       setState(() {
         _generatedItems = items;
+        final activeNames = <String>{
+          ...items.map((item) => item.name),
+          ..._customItems,
+        };
+        _purchaseQuantities.removeWhere((key, _) => !activeNames.contains(key));
+        for (final item in items) {
+          _purchaseQuantities.putIfAbsent(
+            item.name,
+            () => item.suggestedQuantity,
+          );
+        }
+        _checkedItems.removeWhere((key) => !activeNames.contains(key));
         _isLoading = false;
       });
     } catch (_) {

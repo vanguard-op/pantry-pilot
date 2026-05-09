@@ -24,13 +24,17 @@ class ShoppingRepository {
         .toList(growable: false);
   }
 
-  Future<List<PantryItem>> syncBoughtItems(Map<String, double> bought) async {
+  Future<List<PantryItem>> syncBoughtItems(
+    Map<String, double> bought,
+    Map<String, String> units,
+  ) async {
     final payload = bought.entries
         .where((entry) => entry.key.trim().isNotEmpty && entry.value > 0)
         .map(
           (entry) => <String, dynamic>{
             'name': entry.key.trim(),
             'quantity': entry.value,
+            'unit': (units[entry.key] ?? 'pcs').trim().toLowerCase(),
           },
         )
         .toList(growable: false);

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import date, datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import List, Optional
 from typing_extensions import TypedDict
 from uuid import uuid4
 
@@ -172,11 +172,14 @@ class PlannedMealUpdate(SQLModel):
 class BoughtItem(SQLModel):
     name: str
     quantity: float = Field(gt=0)
+    unit: str = "pcs"
 
 
 class ShoppingListItem(SQLModel):
     name: str
     needed_for_meals: int
+    unit: str = "pcs"
+    suggested_quantity: float = Field(default=1, gt=0)
 
 
 class ShoppingListResponse(SQLModel):

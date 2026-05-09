@@ -58,7 +58,7 @@ class ShoppingService:
                 missing_counts[normalized] = missing_counts.get(normalized, 0) + 1
 
         items = [
-            ShoppingListItem(name=name, needed_for_meals=count)
+            self._build_shopping_list_item(name, count)
             for name, count in sorted(missing_counts.items())
         ]
         return ShoppingListResponse(items=items)
@@ -85,7 +85,7 @@ class ShoppingService:
                 user_id=self._user_id,
                 name=bought.name.strip(),
                 quantity=bought.quantity,
-                unit="pcs",
+                unit=self._normalize_unit(bought.unit),
                 storage_location="Pantry",
                 item_kind=PantryItemKind.ingredient,
                 expiry_date=None,
@@ -98,3 +98,50 @@ class ShoppingService:
         for item in updated:
             self._session.refresh(item)
         return updated
+
+    def _build_shopping_list_item(self, name: str, count: int) -> ShoppingListItem:
+        return ShoppingListItem(
+            name=name,
+            needed_for_meals=count,
+            unit=self._suggest_unit(name),
+            suggested_quantity=1,
+        )
+
+    def _normalize_unit(self, unit: str | None) -> str:
+        normalized = (unit or "").strip().lower()
+        return normalized or "pcs"
+
+    def _suggest_unit(self, ingredient_name: str) -> str:
+        """Return a backend-owned default unit for a shopping item.
+
+        This rule-based stub keeps unit selection centralized so it can later be
+        swapped for a richer AI-assisted suggestion flow without changing the
+        API contract consumed by the mobile app.
+        """
+
+        normalized = ingredient_name.strip().lower()
+        if not normalized:
+            return "pcs"
+
+        keyword_units = {
+            "g": {"rice", "pasta", "flour", "sugar", "cheese", "oats"},
+            "ml": {"milk", "broth", "stock", "soy sauce", "vinegar", "oil"},
+            "tbsp": {"olive oil", "sesame oil"},
+            "tsp": {"salt", "paprika", "cumin", "pepper", "spice"},
+            "pcs": {
+                "onion",
+                "tomato",
+                "lemon",
+                "lime",
+                "avocado",
+                "cucumber",
+                "potato",
+                "carrot",
+                "egg",
+            },
+        }
+
+        for unit, keywords in keyword_units.items():
+            if any(keyword in normalized for keyword in keywords):
+                return unit
+        return "pcs"
