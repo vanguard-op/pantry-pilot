@@ -52,11 +52,12 @@ User lands on the home dashboard with a partially or fully seeded pantry and opt
 3. User reviews suggestions
    - Swipe to accept or swap a meal
    - Tap to see full recipe before deciding
-4. For each planned meal, app checks pantry coverage
-   - Covered: shows green checkmark
-   - Missing ingredients: flags items for shopping list
-5. Shopping list auto-generated from gaps
-   - User can edit, remove, or add items
+4. For each planned meal, AI generates structured pantry coverage output
+   - Includes available items, substitutions, and missing quantities
+   - App validates payload integrity before rendering coverage status
+5. Shopping list is generated from AI shopping-gap output
+   - Includes normalized items and suggested quantities
+   - App validates payload integrity before saving/editing the list
 6. User marks purchased items after shopping
    - Check off items as "Bought"
    - Confirm quantity actually purchased
@@ -69,6 +70,7 @@ User lands on the home dashboard with a partially or fully seeded pantry and opt
 - Partial plans are valid; user is not forced to fill all 7 days
 - Shopping list can be exported or shared
 - Bought item sync updates pantry before cooking guidance checks
+- Rule-based checks validate AI JSON output but do not recompute full coverage/gap decisions
 
 ### Exit State
 A confirmed weekly meal plan is saved. Missing ingredients are in the shopping list, and bought items can be synced into pantry ingredient stock (not Cooked Meals/leftovers). User returns to the home dashboard with the plan visible.

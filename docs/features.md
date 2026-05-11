@@ -15,9 +15,14 @@
 
 ### 2. Meal Planning
 - Weekly planner with drag-and-drop meals
-- Ingredient-aware meal suggestions based on pantry contents
-- Auto-generated shopping additions for missing ingredients
+- AI translates recipe ingredient text and planning context into structured coverage data
+- AI generates pantry coverage results and shopping gaps, including suggested missing quantities
+- Rule-based logic validates AI JSON payloads (schema/consistency/safety constraints) before use
 - Shopping list purchase check-off that adds bought ingredients into pantry ingredient stock only (not Cooked Meals/leftovers)
+
+#### AI-Generated Structured Data Contract
+- AI outputs structured JSON for pantry coverage and shopping gaps (ingredients, quantities, units, substitutions, confidence/context fields)
+- Rule-based logic does not recompute full coverage/gap decisions; it validates payload integrity and rejects malformed or inconsistent output
 
 ### 3. Recipe Management
 

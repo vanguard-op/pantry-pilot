@@ -42,7 +42,7 @@ All screens are listed below, grouped by flow. Each entry includes the screen na
 
 ### 6. Weekly Planner Screen
 - **Purpose**: View and build the 7-day meal plan
-- **Content**: 7-day grid, meal slots, recommended meal cards, plan completion indicator
+- **Content**: 7-day grid, meal slots, recommended meal cards, AI-derived pantry coverage status, plan completion indicator
 - **Actions**: Accept suggestion, swap meal, tap to inspect recipe, confirm plan
 - **Navigates to**: Recipe Detail, Shopping List, Home Dashboard
 
@@ -54,9 +54,9 @@ All screens are listed below, grouped by flow. Each entry includes the screen na
 
 ### 8. Shopping List Screen
 - **Purpose**: Show auto-generated list of missing ingredients for the planned week
-- **Content**: Grouped ingredient list (by category), quantity, checkboxes
+- **Content**: Grouped ingredient list (by category), AI-suggested quantities from shopping-gap output, checkboxes
 - **Actions**: Check off items, mark item as "Bought", confirm bought quantity, add custom items, remove items, share/export list, "Add Bought Items to Pantry"
-- **Note**: Shopping List sync updates pantry ingredients only; leftovers/Cooked Meals cannot be created from this screen
+- **Note**: Shopping List sync updates pantry ingredients only; leftovers/Cooked Meals cannot be created from this screen. AI output is validated before list persistence.
 - **Navigates to**: Pantry (to cross-reference and ingredient purchase sync), Weekly Planner
 
 ---
