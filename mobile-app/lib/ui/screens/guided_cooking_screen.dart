@@ -10,6 +10,8 @@ import '../../data/models/pantry_item.dart';
 import '../../data/models/recipe.dart';
 import '../../data/repositories/settings_repository.dart';
 import '../../navigation/app_router.dart';
+import '../../services/audio_alarm_service.dart';
+import '../../services/notification_service.dart';
 import '../../theme/app_theme.dart';
 
 class GuidedCookingScreen extends StatefulWidget {
@@ -28,6 +30,7 @@ class GuidedCookingScreen extends StatefulWidget {
 
 class _GuidedCookingScreenState extends State<GuidedCookingScreen> {
   late final CookingBloc _cookingBloc;
+  late final AudioAlarmService _audioAlarmService;
   bool _sessionLogged = false;
   bool _pantryUpdateEnabled = true;
   bool _favoriteSelected = false;
@@ -41,6 +44,8 @@ class _GuidedCookingScreenState extends State<GuidedCookingScreen> {
   void initState() {
     super.initState();
     _cookingBloc = CookingBloc()..add(CookingStarted(widget.recipe));
+    _audioAlarmService = AudioAlarmService();
+    _audioAlarmService.initialize();
     _favoriteSelected = widget.recipe.isFavorite;
   }
 
@@ -55,6 +60,7 @@ class _GuidedCookingScreenState extends State<GuidedCookingScreen> {
   @override
   void dispose() {
     _cookingBloc.close();
+    _audioAlarmService.dispose();
     super.dispose();
   }
 
@@ -62,16 +68,32 @@ class _GuidedCookingScreenState extends State<GuidedCookingScreen> {
   Widget build(BuildContext context) {
     return BlocProvider<CookingBloc>.value(
       value: _cookingBloc,
-      child: BlocListener<CookingBloc, CookingState>(
-        listenWhen: (previous, current) =>
-            !previous.completed && current.completed,
-        listener: (context, state) {
-          if (_sessionLogged) {
-            return;
-          }
-          _sessionLogged = true;
-          context.read<SettingsRepository>().logCookingSession(DateTime.now());
-        },
+      child: MultiBlocListener(
+        listeners: <BlocListener<CookingBloc, CookingState>>[
+          BlocListener<CookingBloc, CookingState>(
+            listenWhen: (previous, current) =>
+                !previous.completed && current.completed,
+            listener: (context, state) {
+              if (_sessionLogged) {
+                return;
+              }
+              _sessionLogged = true;
+              context.read<SettingsRepository>().logCookingSession(
+                DateTime.now(),
+              );
+            },
+          ),
+          BlocListener<CookingBloc, CookingState>(
+            listenWhen: (previous, current) {
+              return previous.isTimerRunning &&
+                  !current.isTimerRunning &&
+                  current.secondsRemaining == 0;
+            },
+            listener: (context, state) {
+              _playStepTimerAlarm();
+            },
+          ),
+        ],
         child: BlocBuilder<CookingBloc, CookingState>(
           builder: (context, state) {
             final currentRecipe = state.recipe;
@@ -222,6 +244,25 @@ class _GuidedCookingScreenState extends State<GuidedCookingScreen> {
     );
   }
 
+  Future<void> _playStepTimerAlarm() async {
+    // Foreground: play audio + vibration alarm
+    await _audioAlarmService.alarm();
+
+    // Background fallback: trigger notification with sound
+    if (mounted) {
+      await _triggerTimerCompletionNotification();
+    }
+  }
+
+  Future<void> _triggerTimerCompletionNotification() async {
+    try {
+      final notificationsPlugin = context.read<NotificationService>();
+      await notificationsPlugin.showTimerCompletionNotification();
+    } catch (e) {
+      print('Failed to show timer notification: $e');
+    }
+  }
+
   Future<void> _finishCooking(BuildContext context, Recipe recipe) async {
     if (_pantryUpdateEnabled) {
       _applyPantryDeductions(context, recipe);
@@ -258,7 +299,15 @@ class _GuidedCookingScreenState extends State<GuidedCookingScreen> {
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(SnackBar(content: Text(message)));
-    context.goNamed(AppRouter.homeName);
+    if (widget.plannedMealId != null && widget.plannedMealId!.isNotEmpty) {
+      context.goNamed(AppRouter.plannerName);
+      return;
+    }
+
+    context.goNamed(
+      AppRouter.recipeDetailName,
+      pathParameters: <String, String>{AppRouter.recipeIdParam: recipe.id},
+    );
   }
 
   void _applyPantryDeductions(BuildContext context, Recipe recipe) {

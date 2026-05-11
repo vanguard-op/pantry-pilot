@@ -19,7 +19,20 @@ class NotificationService {
     priority: Priority.defaultPriority,
   );
 
+  static const _androidTimerDetails = AndroidNotificationDetails(
+    'pantry_pilot_timers',
+    'Cooking Timers',
+    channelDescription: 'Cooking step timer completion alerts',
+    importance: Importance.high,
+    priority: Priority.high,
+    playSound: true,
+    enableVibration: true,
+  );
+
   static const _details = NotificationDetails(android: _androidDetails);
+  static const _timerDetails = NotificationDetails(
+    android: _androidTimerDetails,
+  );
 
   Future<void> initialize() async {
     tzdata.initializeTimeZones();
@@ -199,5 +212,19 @@ class NotificationService {
       return 'tomorrow';
     }
     return 'in $daysUntilExpiry days';
+  }
+
+  /// Show timer completion notification for background or silent mode fallback.
+  ///
+  /// Called when a guided cooking step timer reaches zero. Uses a dedicated
+  /// high-priority notification channel with sound + vibration to ensure
+  /// the user is alerted even if the app is backgrounded or device is muted.
+  Future<void> showTimerCompletionNotification() async {
+    await _notificationsPlugin.show(
+      id: 9999,
+      title: 'Cooking timer complete',
+      body: 'Your step timer has finished.',
+      notificationDetails: _timerDetails,
+    );
   }
 }
