@@ -21,7 +21,6 @@ _ALLOWED_UNITS = {
     "tsp",
     "tbsp",
     "cup",
-    "serving",
 }
 
 

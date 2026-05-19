@@ -23,6 +23,16 @@ from app.models import (
 )
 
 
+_ALLOWED_UNITS = {
+    "pcs",
+    "g",
+    "kg",
+    "ml",
+    "l",
+    "cup",
+}
+
+
 class AIPlanningService:
     """Generates structured pantry coverage and shopping gaps via Gemini.
 
@@ -54,17 +64,7 @@ class AIPlanningService:
             ],
             "rules": {
                 "statuses": [status.value for status in AICoverageStatus],
-                "units_allowed": [
-                    "pcs",
-                    "g",
-                    "kg",
-                    "ml",
-                    "l",
-                    "tsp",
-                    "tbsp",
-                    "cup",
-                    "serving",
-                ],
+                "units_allowed": list(_ALLOWED_UNITS),
             },
         }
 
@@ -127,17 +127,7 @@ class AIPlanningService:
                 for item in pantry_items
             ],
             "rules": {
-                "units_allowed": [
-                    "pcs",
-                    "g",
-                    "kg",
-                    "ml",
-                    "l",
-                    "tsp",
-                    "tbsp",
-                    "cup",
-                    "serving",
-                ],
+                "units_allowed": list(_ALLOWED_UNITS),
                 "note": "normalize names to lowercase singular where possible",
             },
         }
@@ -360,12 +350,81 @@ class AIPlanningService:
                             "status",
                             "confidence",
                         ],
+                        "properties": {
+                            "ingredient_text": {
+                                "type": "string",
+                                "description": "Raw ingredient string as it appears in the recipe, e.g. '200g pasta'",
+                            },
+                            "normalized_name": {
+                                "type": "string",
+                                "description": "Lower-cased, singular, trimmed ingredient name for matching against pantry, e.g. 'pasta'",
+                            },
+                            "required_quantity": {
+                                "type": "number",
+                                "exclusiveMinimum": 0,
+                                "description": "Quantity required by the recipe for this ingredient",
+                            },
+                            "required_unit": {
+                                "type": "string",
+                                "enum": list(_ALLOWED_UNITS),
+                                "description": "Unit for required_quantity — 'serving' is not valid here; that unit is only for cooked meals/leftovers",
+                            },
+                            "available_quantity": {
+                                "type": "number",
+                                "minimum": 0,
+                                "description": "Quantity the user already has in their pantry (0 if none)",
+                            },
+                            "missing_quantity": {
+                                "type": "number",
+                                "minimum": 0,
+                                "description": "Quantity the user still needs to buy (0 if fully covered)",
+                            },
+                            "status": {
+                                "type": "string",
+                                "enum": ["available", "missing", "substituted"],
+                                "description": "available = pantry covers full required quantity; missing = nothing or insufficient; substituted = a different pantry item can fill the gap",
+                            },
+                            "matched_pantry_item": {
+                                "type": "string",
+                                "description": "The pantry item name that matched this ingredient (null when status is 'missing')",
+                            },
+                            "substitution": {
+                                "anyOf": [
+                                    {"type": "null"},
+                                    {
+                                        "type": "object",
+                                        "required": ["pantry_item_name"],
+                                        "properties": {
+                                            "pantry_item_name": {
+                                                "type": "string",
+                                                "description": "Name of a pantry item that can serve as a substitute",
+                                            },
+                                            "notes": {
+                                                "type": "string",
+                                                "description": "Optional human-readable usage note, e.g. 'use 1:1 ratio, adjust cook time'",
+                                            },
+                                        },
+                                    },
+                                ],
+                                "description": "Present when status is 'substituted'; null otherwise",
+                            },
+                            "confidence": {
+                                "type": "number",
+                                "minimum": 0,
+                                "maximum": 1,
+                                "description": "Model confidence in this assessment (0.0 – 1.0)",
+                            },
+                        },
                     },
                 },
-                "matched_count": {"type": "integer"},
-                "missing_count": {"type": "integer"},
-                "substituted_count": {"type": "integer"},
-                "coverage_percent": {"type": "integer"},
+                "matched_count": {"type": "integer", "minimum": 0},
+                "missing_count": {"type": "integer", "minimum": 0},
+                "substituted_count": {"type": "integer", "minimum": 0},
+                "coverage_percent": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 100,
+                },
                 "notes": {"type": "string"},
             },
         }
@@ -396,6 +455,36 @@ class AIPlanningService:
                             "suggested_unit",
                             "confidence",
                         ],
+                        "properties": {
+                            "ingredient_text": {
+                                "type": "string",
+                                "description": "Raw ingredient string as it appears in recipes, e.g. '200g pasta'",
+                            },
+                            "normalized_name": {
+                                "type": "string",
+                                "description": "Lower-cased, singular, trimmed ingredient name for de-duplication across recipes, e.g. 'pasta'",
+                            },
+                            "suggested_quantity": {
+                                "type": "number",
+                                "exclusiveMinimum": 0,
+                                "description": "Suggested quantity the user should buy to cover all planned meals",
+                            },
+                            "suggested_unit": {
+                                "type": "string",
+                                "enum": list(_ALLOWED_UNITS),
+                                "description": "Unit for suggested_quantity — 'serving' is not valid here; that unit is only for cooked meals/leftovers",
+                            },
+                            "reason": {
+                                "type": "string",
+                                "description": "Short human-readable note explaining why this item is needed, e.g. 'Missing for 2 planned spaghetti bolognese meals'",
+                            },
+                            "confidence": {
+                                "type": "number",
+                                "minimum": 0,
+                                "maximum": 1,
+                                "description": "Model confidence that this item is genuinely needed (0.0 – 1.0)",
+                            },
+                        },
                     },
                 },
                 "notes": {"type": "string"},

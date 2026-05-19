@@ -7,19 +7,30 @@ class ShoppingRepository {
 
   final ApiClient _apiClient;
 
+  /// Fetches AI-generated shopping gaps for the next [days] of planned meals.
+  ///
+  /// Calls the AI planner endpoint (`/api/v1/ai/planner/shopping-gaps`) which
+  /// uses Gemini to analyse planned meals against pantry inventory and returns
+  /// normalised missing-ingredient items with suggested quantities.
   Future<List<ShoppingListItem>> getShoppingList({int days = 7}) async {
     final response = await _apiClient.getObject(
-      '/api/v1/shopping',
+      '/api/v1/ai/planner/shopping-gaps',
       queryParameters: <String, String>{'days': days.toString()},
     );
 
-    final rawItems = (response['items'] as List<dynamic>? ?? const <dynamic>[])
+    // The AI endpoint wraps the payload in a top-level envelope:
+    // { "payload": { "items": [...], ... }, "validation": { ... } }
+    final payload =
+        (response['payload'] as Map<String, dynamic>?) ??
+        response;
+
+    final rawItems = (payload['items'] as List<dynamic>? ?? const <dynamic>[])
         .whereType<Map>()
         .map((item) => item.cast<String, dynamic>())
         .toList(growable: false);
 
     return rawItems
-        .map(ShoppingListItem.fromMap)
+        .map(ShoppingListItem.fromAiMap)
         .where((item) => item.name.isNotEmpty)
         .toList(growable: false);
   }
