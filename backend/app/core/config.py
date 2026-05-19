@@ -36,6 +36,10 @@ class Settings(BaseSettings):
     cognito_hosted_ui_domain_prefix: str = Field(default="", alias="COGNITO_HOSTED_UI_DOMAIN_PREFIX")
     cognito_hosted_ui_domain: str = Field(default="", alias="COGNITO_HOSTED_UI_DOMAIN")
 
+    # Google AI Studio (Gemini) settings used for AI planning payloads.
+    gemini_api_key: str = Field(default="", alias="GEMINI_API_KEY")
+    gemini_model: str = Field(default="gemini-3.1-flash-lite", alias="GEMINI_MODEL")
+
     @property
     def allowed_origins_list(self) -> List[str]:
         return [value.strip() for value in self.allowed_origins.split(",") if value.strip()]

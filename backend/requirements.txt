@@ -9,3 +9,4 @@ alembic
 python-jose[cryptography]
 httpx
 boto3
+google-genai

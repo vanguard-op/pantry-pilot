@@ -5,6 +5,7 @@ from fastapi.openapi.utils import get_openapi
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.routes import (
+    ai_planner,
     feedback,
     health,
     kpi,
@@ -44,6 +45,7 @@ app.include_router(shopping.router, prefix="/api/v1")
 app.include_router(settings.router, prefix="/api/v1")
 app.include_router(feedback.router, prefix="/api/v1")
 app.include_router(kpi.router, prefix="/api/v1")
+app.include_router(ai_planner.router, prefix="/api/v1")
 
 
 def custom_openapi() -> dict[str, Any]:

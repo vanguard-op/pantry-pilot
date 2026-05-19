@@ -295,3 +295,78 @@ class PantryCoverageResponse(SQLModel):
     total_count: int
     missing_ingredients: List[str]
     available_ingredients: List[str]
+
+
+class AICoverageStatus(str, Enum):
+    available = "available"
+    missing = "missing"
+    substituted = "substituted"
+
+
+class AICoverageSubstitution(SQLModel):
+    pantry_item_name: str
+    notes: str = ""
+
+
+class AICoverageIngredient(SQLModel):
+    ingredient_text: str
+    normalized_name: str
+    required_quantity: float = Field(gt=0)
+    required_unit: str
+    available_quantity: float = Field(default=0, ge=0)
+    missing_quantity: float = Field(default=0, ge=0)
+    status: AICoverageStatus
+    matched_pantry_item: Optional[str] = None
+    substitution: Optional[AICoverageSubstitution] = None
+    confidence: float = Field(default=1, ge=0, le=1)
+
+
+class AIPantryCoveragePayload(SQLModel):
+    recipe_id: str
+    model: str
+    generated_at: datetime
+    ingredients: List[AICoverageIngredient]
+    matched_count: int = Field(ge=0)
+    missing_count: int = Field(ge=0)
+    substituted_count: int = Field(ge=0)
+    coverage_percent: int = Field(ge=0, le=100)
+    notes: str = ""
+
+
+class AIShoppingGapItem(SQLModel):
+    ingredient_text: str
+    normalized_name: str
+    suggested_quantity: float = Field(gt=0)
+    suggested_unit: str
+    reason: str = ""
+    confidence: float = Field(default=1, ge=0, le=1)
+
+
+class AIShoppingGapsPayload(SQLModel):
+    start_date: date
+    end_date: date
+    model: str
+    generated_at: datetime
+    items: List[AIShoppingGapItem]
+    notes: str = ""
+
+
+class AIValidationIssue(SQLModel):
+    code: str
+    message: str
+    field_path: str = ""
+
+
+class AIValidationResult(SQLModel):
+    valid: bool
+    issues: List[AIValidationIssue] = Field(default_factory=list)
+
+
+class AICoverageResponse(SQLModel):
+    payload: AIPantryCoveragePayload
+    validation: AIValidationResult
+
+
+class AIShoppingGapsResponse(SQLModel):
+    payload: AIShoppingGapsPayload
+    validation: AIValidationResult
