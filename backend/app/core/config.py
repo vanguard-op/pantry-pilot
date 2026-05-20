@@ -36,9 +36,22 @@ class Settings(BaseSettings):
     cognito_hosted_ui_domain_prefix: str = Field(default="", alias="COGNITO_HOSTED_UI_DOMAIN_PREFIX")
     cognito_hosted_ui_domain: str = Field(default="", alias="COGNITO_HOSTED_UI_DOMAIN")
 
-    # Google AI Studio (Gemini) settings used for AI planning payloads.
-    gemini_api_key: str = Field(default="", alias="GEMINI_API_KEY")
-    gemini_model: str = Field(default="gemini-3.1-flash-lite", alias="GEMINI_MODEL")
+    # OpenCode AI settings used for AI planning payloads.
+    # The OpenCode platform provides access to deepseek and other models via
+    # a local or remote API server.  Default base URL points at the local
+    # OpenCode desktop app.
+    opencode_base_url: str = Field(
+        default="http://localhost:54321",
+        alias="OPENCODE_BASE_URL",
+    )
+    opencode_model: str = Field(
+        default="opencode-go/deepseek-v4-flash",
+        alias="OPENCODE_MODEL",
+    )
+    opencode_provider: str = Field(
+        default="opencode-go",
+        alias="OPENCODE_PROVIDER",
+    )
 
     @property
     def allowed_origins_list(self) -> List[str]:
