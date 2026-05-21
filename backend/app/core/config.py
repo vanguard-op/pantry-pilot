@@ -52,6 +52,13 @@ class Settings(BaseSettings):
         default="",
         alias="OPENCODE_API_KEY",
     )
+    # Optional: sets the model's reasoning effort in the API call.
+    # Supported values depend on the model (e.g. "low", "medium", "high").
+    # Leave blank to use the model default.
+    opencode_reasoning_effort: str = Field(
+        default="",
+        alias="OPENCODE_REASONING_EFFORT",
+    )
 
     @property
     def allowed_origins_list(self) -> List[str]:
