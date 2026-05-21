@@ -94,6 +94,12 @@ module "api_handler" {
     COGNITO_USER_POOL_ID            = aws_cognito_user_pool.this.id
     COGNITO_CLIENT_ID               = aws_cognito_user_pool_client.this.id
     COGNITO_HOSTED_UI_DOMAIN_PREFIX = aws_cognito_user_pool_domain.this.domain
+    # OpenCode AI — non-sensitive config passed directly; sensitive key
+    # is stored in Secrets Manager and resolved via OPENCODE_SECRET_ARN.
+    OPENCODE_BASE_URL            = var.opencode_base_url
+    OPENCODE_MODEL               = var.opencode_model
+    OPENCODE_REASONING_EFFORT    = var.opencode_reasoning_effort
+    OPENCODE_SECRET_ARN          = aws_secretsmanager_secret.general_config.arn
   }
 
   create_role = true
@@ -177,6 +183,7 @@ module "db_migrator" {
     DATABASE_HOST       = module.rds_aurora.cluster_endpoint
     DATABASE_PORT       = tostring(module.rds_aurora.cluster_port)
     DATABASE_SECRET_ARN = module.rds_aurora.cluster_master_user_secret[0].secret_arn
+    OPENCODE_SECRET_ARN = aws_secretsmanager_secret.general_config.arn
   }
 
   create_role = true
@@ -209,6 +216,21 @@ resource "null_resource" "run_db_migrations" {
   ]
 }
 
+# General-purpose secrets store for sensitive config (OpenCode API key, etc.)
+# The secret value is a JSON object.  Values must be set manually or via
+# CI/CD after `terraform apply` (e.g. ``{"opencode_api_key":"sk-..."}``).
+resource "aws_secretsmanager_secret" "general_config" {
+  name        = "pantry-pilot-general-config-${var.environment}"
+  description = "General-purpose sensitive configuration for PantryPilot"
+}
+
+resource "aws_secretsmanager_secret_version" "general_config" {
+  secret_id     = aws_secretsmanager_secret.general_config.id
+  secret_string = jsonencode({
+    opencode_api_key = ""
+  })
+}
+
 resource "aws_iam_role_policy" "api_handler_secrets_policy" {
   name = "pantry_pilot_api_handler_secrets_policy"
   role = module.api_handler.lambda_role_name
@@ -222,7 +244,10 @@ resource "aws_iam_role_policy" "api_handler_secrets_policy" {
           "secretsmanager:GetSecretValue",
           "secretsmanager:DescribeSecret"
         ],
-        Resource = module.rds_aurora.cluster_master_user_secret[0].secret_arn
+        Resource = [
+          module.rds_aurora.cluster_master_user_secret[0].secret_arn,
+          aws_secretsmanager_secret.general_config.arn
+        ]
       }
     ]
   })
@@ -241,7 +266,10 @@ resource "aws_iam_role_policy" "db_migrator_secrets_policy" {
           "secretsmanager:GetSecretValue",
           "secretsmanager:DescribeSecret"
         ],
-        Resource = module.rds_aurora.cluster_master_user_secret[0].secret_arn
+        Resource = [
+          module.rds_aurora.cluster_master_user_secret[0].secret_arn,
+          aws_secretsmanager_secret.general_config.arn
+        ]
       }
     ]
   })

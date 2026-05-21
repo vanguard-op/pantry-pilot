@@ -117,7 +117,7 @@ class AIPlanningService:
     def _is_ai_enabled(self) -> bool:
         return bool(
             self._settings.opencode_model.strip()
-            and self._settings.opencode_api_key.strip()
+            and self._settings._resolved_opencode_api_key.strip()
             and self._settings.opencode_base_url.strip()
         )
 
@@ -138,7 +138,7 @@ class AIPlanningService:
         )
 
         client = OpenAI(
-            api_key=settings.opencode_api_key,
+            api_key=settings._resolved_opencode_api_key,
             base_url=settings.opencode_base_url,
             timeout=60.0,
             max_retries=0,

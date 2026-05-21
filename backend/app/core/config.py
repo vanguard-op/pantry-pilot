@@ -52,6 +52,14 @@ class Settings(BaseSettings):
         default="",
         alias="OPENCODE_API_KEY",
     )
+    # ARN of the general-purpose Secrets Manager secret that stores the
+    # OpenCode API key under the ``opencode_api_key`` key.
+    # Leave empty in local dev; the API key is read directly from
+    # OPENCODE_API_KEY in that case.
+    opencode_secret_arn: str = Field(
+        default="",
+        alias="OPENCODE_SECRET_ARN",
+    )
     # Optional: sets the model's reasoning effort in the API call.
     # Supported values depend on the model (e.g. "low", "medium", "high").
     # Leave blank to use the model default.
@@ -97,6 +105,34 @@ class Settings(BaseSettings):
         if not password:
             raise ValueError("Secrets Manager payload missing 'password'")
         return str(password)
+
+    @property
+    def _resolved_opencode_api_key(self) -> str:
+        """Resolve the OpenCode API key from Secrets Manager or env var.
+
+        When ``opencode_secret_arn`` is set the secret is fetched from
+        AWS Secrets Manager and the ``opencode_api_key`` key is extracted.
+        Otherwise the plain ``opencode_api_key`` env value is used (local
+        development).
+        """
+        if not self.opencode_secret_arn:
+            return self.opencode_api_key
+
+        boto3 = importlib.import_module("boto3")
+        client = boto3.client(
+            "secretsmanager",
+            region_name=self.aws_region or None,
+        )
+        secret_value = client.get_secret_value(SecretId=self.opencode_secret_arn)
+        secret_string = secret_value.get("SecretString")
+        if not secret_string:
+            raise ValueError("OPENCODE_SECRET_ARN did not return SecretString")
+
+        payload = json.loads(secret_string)
+        key = payload.get("opencode_api_key")
+        if not key:
+            raise ValueError("Secrets Manager payload missing 'opencode_api_key'")
+        return str(key)
 
     @property
     def cognito_enabled(self) -> bool:

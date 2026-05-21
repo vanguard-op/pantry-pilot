@@ -66,3 +66,24 @@ variable "db_skip_final_snapshot" {
   default     = true
   description = "Skip creating a final snapshot when the cluster is destroyed"
 }
+
+# ===================================
+# OpenCode AI Configuration
+# ===================================
+variable "opencode_base_url" {
+  type        = string
+  default     = "https://opencode.ai/zen/go/v1"
+  description = "OpenCode AI base URL (OpenAI-compatible endpoint)"
+}
+
+variable "opencode_model" {
+  type        = string
+  default     = "deepseek-v4-flash"
+  description = "OpenCode AI model identifier"
+}
+
+variable "opencode_reasoning_effort" {
+  type        = string
+  default     = ""
+  description = "Optional: model reasoning effort (low/medium/high)"
+}
