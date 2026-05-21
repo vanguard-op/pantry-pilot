@@ -9,4 +9,4 @@ alembic
 python-jose[cryptography]
 httpx
 boto3
-opencode-ai==0.1.0a36
+openai

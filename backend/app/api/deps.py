@@ -22,35 +22,48 @@ async def get_current_user_id(
 ) -> str:
     """Resolve the caller's user_id from the request.
 
-    Production / staging: verifies the Cognito JWT from the
-    ``Authorization: Bearer <token>`` header and returns the ``sub`` claim.
+    Production / staging (``APP_ENV=staging`` or ``APP_ENV=prod``):
+    verifies the Cognito JWT from the ``Authorization: Bearer <token>``
+    header and returns the ``sub`` claim.  ``X-User-Id`` is *not* accepted.
 
-    Local development (COGNITO_USER_POOL_ID not set): falls back to the
-    ``X-User-Id`` header so existing tooling and tests keep working.
+    Development (``APP_ENV=dev``, the default):
+    prefers the Cognito JWT when present, but falls back to the
+    ``X-User-Id`` header when no Bearer token is provided.  This lets
+    local tooling, tests, and unauthenticated mobile builds keep working
+    without standing up a full Cognito pool on every device.
     """
     settings = get_settings()
+    is_dev = settings.app_env.strip().lower() == "dev"
 
     if settings.cognito_enabled:
-        if credentials is None:
+        if credentials is not None:
+            try:
+                return verify_cognito_token(
+                    token=credentials.credentials,
+                    jwks_url=settings.cognito_jwks_url,
+                    issuer=settings.cognito_issuer,
+                )
+            except ValueError as exc:
+                if not is_dev:
+                    raise HTTPException(
+                        status_code=status.HTTP_401_UNAUTHORIZED,
+                        detail=str(exc),
+                        headers={"WWW-Authenticate": "Bearer"},
+                    ) from exc
+                # In dev mode: fall through to X-User-Id instead of
+                # failing hard so mobile-dev users see a usable error.
+
+        if not is_dev:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Missing Authorization header",
                 headers={"WWW-Authenticate": "Bearer"},
             )
-        try:
-            return verify_cognito_token(
-                token=credentials.credentials,
-                jwks_url=settings.cognito_jwks_url,
-                issuer=settings.cognito_issuer,
-            )
-        except ValueError as exc:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail=str(exc),
-                headers={"WWW-Authenticate": "Bearer"},
-            ) from exc
+        # Dev-only: fall through to X-User-Id below.
 
     # Local-dev fallback — X-User-Id header.
+    # Reached when Cognito is disabled, or when APP_ENV=dev and no
+    # valid Bearer token was provided.
     if not x_user_id:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

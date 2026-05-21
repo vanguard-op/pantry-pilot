@@ -1,11 +1,10 @@
 from __future__ import annotations
 
 import json
-import uuid
 from datetime import date, datetime, timedelta
 
 from fastapi import HTTPException, status
-import httpx
+from openai import APIError as OpenAIAPIError, OpenAI
 from sqlmodel import select
 
 from app.api.deps import SessionDep, UserIdDep
@@ -156,31 +155,32 @@ class AIPlanningService:
 
     @property
     def _is_ai_enabled(self) -> bool:
-        return bool(self._settings.opencode_model.strip())
+        return bool(
+            self._settings.opencode_model.strip()
+            and self._settings.opencode_api_key.strip()
+            and self._settings.opencode_base_url.strip()
+        )
 
     def _call_opencode(self, *, instruction: str, context: dict, output_schema: dict) -> dict:
-        """Send a structured prompt to OpenCode AI and return the parsed JSON.
+        """Send a structured prompt via the OpenAI-compatible endpoint and return parsed JSON.
 
-        Tries the OpenAI-compatible ``/v1/chat/completions`` endpoint first.
-        If that fails (the endpoint may not be mounted) it falls back to the
-        native session-based ``POST /session/{id}/message`` path.
-
-        The prompt is sent as a ``system`` message (the instruction) followed
+        Uses the ``openai`` package to call the OpenCode AI endpoint.  The
+        prompt is sent as a ``system`` message (the instruction) followed
         by a ``user`` message that contains both the context data and the
         expected output schema so the model has everything it needs inline.
 
         Raises ``HTTPException(502)`` if the server returns an error or the
         response cannot be parsed into a JSON object.
         """
-        model = self._settings.opencode_model.strip()
-        base_url = self._settings.opencode_base_url.strip().rstrip("/")
+        settings = self._settings
+        model = settings.opencode_model.strip()
 
         if not model:
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail=(
                     "OpenCode AI is not configured. "
-                    "Set OPENCODE_MODEL and optionally OPENCODE_BASE_URL."
+                    "Set OPENCODE_MODEL and OPENCODE_API_KEY."
                 ),
             )
 
@@ -189,7 +189,7 @@ class AIPlanningService:
             ensure_ascii=True,
         )
 
-        messages = [
+        messages: list[dict[str, str]] = [
             {"role": "system", "content": instruction},
             {
                 "role": "user",
@@ -200,149 +200,52 @@ class AIPlanningService:
             },
         ]
 
-        body = {
-            "model": model,
-            "messages": messages,
-            "temperature": 0.1,
-        }
-        session_id = str(uuid.uuid4())
+        client = OpenAI(
+            api_key=settings.opencode_api_key,
+            base_url=settings.opencode_base_url,
+            # Explicit 60-second total timeout (the AI model needs time to
+            # generate structured JSON).  No automatic retries — fail fast
+            # and return a 502 so the caller gets a definitive error instead
+            # of compounding latency.
+            timeout=60.0,
+            max_retries=0,
+        )
 
-        with httpx.Client(timeout=60.0) as http:
-            # ── Attempt 1 — OpenAI-compatible completions ──────────────
-            response = http.post(
-                f"{base_url}/v1/chat/completions",
-                json={**body, "response_format": {"type": "json_object"}},
-                headers={"Content-Type": "application/json"},
-            )
-
-            response_text = response.text.strip()
-
-            # ── Attempt 2 — Native session message API ─────────────────
-            if not response_text:
-                response = http.post(
-                    f"{base_url}/session/{session_id}/message",
-                    json={
-                        "modelID": model,
-                        "providerID": "opencode-go",
-                        "parts": [
-                            {
-                                "type": "text",
-                                "text": json.dumps(body, ensure_ascii=True),
-                            }
-                        ],
-                        "system": instruction,
-                    },
-                    headers={"Content-Type": "application/json"},
-                )
-                response_text = response.text.strip()
-
-        # ── Validate HTTP status ───────────────────────────────────────
-        if response.status_code != 200:
-            detail = (
-                f"OpenCode AI at {base_url} returned HTTP "
-                f"{response.status_code}"
-            )
-            if response_text:
-                # Attempt to extract a human-readable error from server body.
-                try:
-                    err_body = json.loads(response_text)
-                    err_data = err_body.get("data", {}) if isinstance(err_body, dict) else err_body
-                    detail += f": {err_data.get('message', response_text[:500])}"
-                except json.JSONDecodeError:
-                    detail += f": {response_text[:500]}"
-            raise HTTPException(
-                status_code=status.HTTP_502_BAD_GATEWAY,
-                detail=detail,
-            )
-
-        if not response_text:
-            raise HTTPException(
-                status_code=status.HTTP_502_BAD_GATEWAY,
-                detail=(
-                    f"OpenCode AI at {base_url} returned HTTP 200 with an "
-                    f"empty body. The server may not support the requested "
-                    f"endpoint."
-                ),
-            )
-
-        # ── Parse top-level JSON ───────────────────────────────────────
         try:
-            data = json.loads(response_text)
-        except json.JSONDecodeError as exc:
+            completion = client.chat.completions.create(
+                model=model,
+                messages=messages,
+                temperature=0.1,
+                response_format={"type": "json_object"},
+            )
+        except OpenAIAPIError as exc:
             raise HTTPException(
                 status_code=status.HTTP_502_BAD_GATEWAY,
                 detail=(
-                    f"OpenCode AI returned non-JSON response: "
-                    f"{response_text[:500]}"
+                    f"OpenCode AI request failed: {exc.message} "
+                    f"(HTTP {exc.status_code})"
                 ),
             ) from exc
 
-        # ── Extract text from session-format response ──────────────────
-        if isinstance(data, dict) and "choices" not in data:
-            # Session response: look for a text part in the top-level body
-            # or in a list wrapper.
-            parts = data.get("parts") or []
-            text = ""
-            for part in parts:
-                if part.get("type") == "text":
-                    text = (part.get("text") or "").strip()
-                    if text:
-                        break
-            # If still empty, try the first list element (some endpoints
-            # wrap the message in a list).
-            if not text and isinstance(data.get("data"), list):
-                for item in data["data"]:
-                    for part in item.get("parts") or []:
-                        if part.get("type") == "text":
-                            text = (part.get("text") or "").strip()
-                            if text:
-                                break
-                    if text:
-                        break
+        content = (completion.choices[0].message.content or "").strip()
+        if not content:
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail="OpenCode AI returned an empty message.",
+            )
 
-            if not text:
-                raise HTTPException(
-                    status_code=status.HTTP_502_BAD_GATEWAY,
-                    detail=(
-                        f"OpenCode AI returned no text part in session "
-                        f"response. Body: {response_text[:500]}"
-                    ),
-                )
-        # ── Extract text from OpenAI-format response ───────────────────
-        else:
-            choices = data.get("choices") if isinstance(data, dict) else []
-            if not choices:
-                raise HTTPException(
-                    status_code=status.HTTP_502_BAD_GATEWAY,
-                    detail=(
-                        f"OpenCode AI response missing 'choices'. "
-                        f"Body: {response_text[:500]}"
-                    ),
-                )
-            text = (
-                (choices[0].get("message") or {}).get("content") or ""
-            ).strip()
-            if not text:
-                raise HTTPException(
-                    status_code=status.HTTP_502_BAD_GATEWAY,
-                    detail="OpenCode AI assistant message content is empty.",
-                )
-
-        # ── Parse the extracted JSON text ─────────────────────────────
         try:
-            parsed = json.loads(text)
+            parsed = json.loads(content)
         except json.JSONDecodeError as exc:
             raise HTTPException(
                 status_code=status.HTTP_502_BAD_GATEWAY,
-                detail=(
-                    f"OpenCode AI returned malformed JSON: {text[:500]}"
-                ),
+                detail=f"OpenCode AI returned malformed JSON: {content[:500]}",
             ) from exc
 
         if not isinstance(parsed, dict):
             raise HTTPException(
                 status_code=status.HTTP_502_BAD_GATEWAY,
-                detail="OpenCode AI JSON payload must be an object.",
+                detail="OpenCode AI JSON payload must be a JSON object.",
             )
 
         return parsed

@@ -558,13 +558,13 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
         _checkedItems.removeWhere((key) => !activeNames.contains(key));
         _isLoading = false;
       });
-    } catch (_) {
+    } catch (error) {
       if (!mounted) {
         return;
       }
       setState(() {
         _isLoading = false;
-        _loadError = 'Unable to load shopping list from server.';
+        _loadError = error.toString();
       });
     }
   }

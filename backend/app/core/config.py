@@ -37,20 +37,20 @@ class Settings(BaseSettings):
     cognito_hosted_ui_domain: str = Field(default="", alias="COGNITO_HOSTED_UI_DOMAIN")
 
     # OpenCode AI settings used for AI planning payloads.
-    # The OpenCode platform provides access to deepseek and other models via
-    # a local or remote API server.  Default base URL points at the local
-    # OpenCode desktop app.
+    # Uses the openai package to call the OpenAI-compatible endpoint.
+    # The base URL should point at the server root (e.g. https://opencode.ai/zen/go/v1);
+    # the openai package appends /chat/completions automatically.
     opencode_base_url: str = Field(
-        default="http://localhost:54321",
+        default="https://opencode.ai/zen/go/v1",
         alias="OPENCODE_BASE_URL",
     )
     opencode_model: str = Field(
-        default="opencode-go/deepseek-v4-flash",
+        default="deepseek-v4-flash",
         alias="OPENCODE_MODEL",
     )
-    opencode_provider: str = Field(
-        default="opencode-go",
-        alias="OPENCODE_PROVIDER",
+    opencode_api_key: str = Field(
+        default="",
+        alias="OPENCODE_API_KEY",
     )
 
     @property

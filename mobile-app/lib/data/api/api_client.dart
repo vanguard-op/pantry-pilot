@@ -51,7 +51,10 @@ class ApiClient {
       BaseOptions(
         baseUrl: _normalizeBaseUrl(baseUrl),
         connectTimeout: const Duration(seconds: 10),
-        receiveTimeout: const Duration(seconds: 30),
+        // Generous receive timeout — the /ai/planner endpoints call
+        // OpenCode AI which can take 30–60 seconds to generate structured
+        // JSON output (pantry coverage + shopping gaps).
+        receiveTimeout: const Duration(seconds: 120),
         headers: <String, String>{'Accept': 'application/json'},
         // Handle non-2xx statuses ourselves so we can raise domain exceptions.
         validateStatus: (_) => true,
